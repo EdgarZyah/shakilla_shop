@@ -25,4 +25,13 @@ To run the backend API, follow these steps:
     
     cd backend
     npm install
+
+Database Migration
+
+    npx sequelize-cli db:create 
+    npx sequelize db:migrate 
+    npx sequelize-cli db:seed:all 
+
+Run the server
+    
     node app.js
