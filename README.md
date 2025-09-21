@@ -33,7 +33,9 @@ Database Migration
     npx sequelize-cli db:seed:all 
 
 initial user in seeder
+
 email    : admin@shakillashop.com
+
 password : 1234567890
 
 Run the server
