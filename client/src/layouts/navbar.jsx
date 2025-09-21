@@ -1,5 +1,3 @@
-// shakilla_shop/client/src/layouts/navbar.jsx
-
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -46,12 +44,13 @@ const Navbar = ({ key }) => {
 
   useEffect(() => {
     fetchCartData();
-  }, [userId, key]); // Tambahkan `key` ke array dependensi
+  }, [userId, key]);
 
   const handleClickOutside = (event) => {
     if (cartRef.current && !cartRef.current.contains(event.target)) {
       setIsCartOpen(false);
     }
+    // Logika penutupan menu mobile
     if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
       setIsMobileMenuOpen(false);
     }
@@ -217,7 +216,7 @@ const Navbar = ({ key }) => {
       {/* Mobile Menu Panel */}
       <div
         ref={mobileMenuRef}
-        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`absolute md:hidden bg-purewhite w-full shadow-lg overflow-hidden transition-all duration-300 ease-in-out z-[49] ${ // z-index diubah
           isMobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}
         id="mobile-menu"
@@ -250,14 +249,7 @@ const Navbar = ({ key }) => {
           )}
         </div>
       </div>
-
-      {/* Overlay untuk mobile di luar menu */}
-      {isMobileMenuOpen && (
-        <div
-          onClick={() => setIsMobileMenuOpen(false)}
-          className="md:hidden fixed inset-0 z-[48] bg-black/50 transition-opacity duration-300"
-        />
-      )}
+      
     </nav>
   );
 };
