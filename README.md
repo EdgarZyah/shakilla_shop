@@ -3,6 +3,7 @@
 This repository contains a fullstack project with two main parts:
 
 Frontend – Located in the client/ folder (using React/Vite)
+
 Backend – Located in the backend/ folder (using Express/Sequelize/Node.js)
 
 📦 Prerequisites
