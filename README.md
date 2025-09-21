@@ -23,7 +23,7 @@ To run the frontend application, follow these steps:
 
 To run the backend API, follow these steps:
     
-    cd backend
+    cd server
     npm install
 
 Database Migration
