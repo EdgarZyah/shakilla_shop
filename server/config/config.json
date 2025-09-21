@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "root",
+    "password": null,
+    "database": "shakilla_shop",
+    "host": "localhost",
+    "dialect": "mysql"
+  },
+  "test": {
+    "username": "root",
+    "password": null,
+    "database": "shakilla_shop_test",
+    "host": "localhost",
+    "dialect": "mysql"
+  },
+  "production": {
+    "username": "root",
+    "password": null,
+    "database": "shakilla_shop_production",
+    "host": "localhost",
+    "dialect": "mysql"
+  }
+}

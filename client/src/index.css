@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* BACKGROUNDS */
+  .bg-softpink {
+    background-color: #ffb8c6;
+  }
+  .bg-darkgray {
+    background-color: #3a3a3a;
+  }
+  .bg-purewhite {
+    background-color: #ffffff;
+  }
+  .bg-lightmauve {
+    background-color: #f7e7f0;
+  }
+  .bg-elegantburgundy {
+    background-color: #a64c69;
+  }
+  .hover-lightmauve {
+    background-color: #f7e7f0;
+  }
+
+  /* TEXTS */
+  .text-softpink {
+    color: #ffb8c6;
+  }
+  .text-darkgray {
+    color: #3a3a3a;
+  }
+  .text-purewhite {
+    color: #ffffff;
+  }
+  .text-lightmauve {
+    color: #f7e7f0;
+  }
+  .text-elegantburgundy {
+    color: #a64c69;
+  }
+
+  /* BORDERS */
+  .border-softpink {
+    border-color: #ffb8c6;
+  }
+  .border-darkgray {
+    border-color: #3a3a3a;
+  }
+  .border-purewhite {
+    border-color: #ffffff;
+  }
+  .border-lightmauve {
+    border-color: #f7e7f0;
+  }
+  .border-elegantburgundy {
+    border-color: #a64c69;
+  }
+}
