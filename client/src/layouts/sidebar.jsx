@@ -359,7 +359,7 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
 
       {/* Versi Mobile Dropdown Menu */}
       <div
-        className={`md:hidden fixed top-12 left-0 right-0 bottom-0 z-[49] bg-purewhite shadow-xl overflow-y-auto transition-all duration-300 ease-in-out ${
+        className={`md:hidden fixed top-20 left-0 right-0 bottom-0 z-[49] bg-purewhite shadow-xl overflow-y-auto transition-all duration-300 ease-in-out ${
           isMobileMenuOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
         }`}
       >
