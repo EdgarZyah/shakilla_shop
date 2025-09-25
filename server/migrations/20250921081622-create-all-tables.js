@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Tabel `users`
-    await queryInterface.createTable('users', {
+    await queryInterface.createTable("users", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -38,22 +38,24 @@ module.exports = {
       },
       role: {
         type: Sequelize.STRING,
-        defaultValue: 'user',
+        defaultValue: "user",
       },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal(
+          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+        ),
       },
     });
 
     // Tabel `categories`
-    await queryInterface.createTable('categories', {
+    await queryInterface.createTable("categories", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -69,17 +71,19 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal(
+          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+        ),
       },
     });
-    
+
     // Tabel `products`
-    await queryInterface.createTable('products', {
+    await queryInterface.createTable("products", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -100,6 +104,9 @@ module.exports = {
         type: Sequelize.INTEGER,
         defaultValue: 0,
       },
+      size: { // <-- Kolom size ditambahkan
+        type: Sequelize.STRING,
+      },
       category_id: {
         type: Sequelize.INTEGER,
       },
@@ -112,17 +119,19 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal(
+          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+        ),
       },
     });
 
     // Tabel `carts`
-    await queryInterface.createTable('carts', {
+    await queryInterface.createTable("carts", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -135,17 +144,19 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal(
+          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+        ),
       },
     });
 
     // Tabel `cart_items`
-    await queryInterface.createTable('cart_items', {
+    await queryInterface.createTable("cart_items", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -164,10 +175,13 @@ module.exports = {
         allowNull: false,
         defaultValue: 1,
       },
+      size: { // <-- Kolom size ditambahkan
+        type: Sequelize.STRING,
+      },
     });
-    
+
     // Tabel `orders`
-    await queryInterface.createTable('orders', {
+    await queryInterface.createTable("orders", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -178,9 +192,9 @@ module.exports = {
         allowNull: false,
       },
       order_status: {
-        type: Sequelize.ENUM('pending', 'diproses', 'dikirim', 'selesai'),
+        type: Sequelize.ENUM("pending", "diproses", "dikirim", "selesai"),
         allowNull: false,
-        defaultValue: 'pending',
+        defaultValue: "pending",
       },
       total_price: {
         type: Sequelize.DECIMAL(12, 2),
@@ -189,17 +203,19 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal(
+          "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+        ),
       },
     });
-    
+
     // Tabel `order_items`
-    await queryInterface.createTable('order_items', {
+    await queryInterface.createTable("order_items", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -221,10 +237,13 @@ module.exports = {
         type: Sequelize.DECIMAL(12, 2),
         allowNull: false,
       },
+      size: { // <-- Kolom size ditambahkan
+        type: Sequelize.STRING,
+      },
     });
 
     // Tabel `shipping`
-    await queryInterface.createTable('shipping', {
+    await queryInterface.createTable("shipping", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -239,9 +258,9 @@ module.exports = {
         allowNull: false,
       },
       shipping_status: {
-        type: Sequelize.ENUM('pending', 'dikirim', 'diterima'),
+        type: Sequelize.ENUM("pending", "dikirim", "diterima"),
         allowNull: false,
-        defaultValue: 'pending',
+        defaultValue: "pending",
       },
       shipped_at: {
         type: Sequelize.DATE,
@@ -252,7 +271,7 @@ module.exports = {
     });
 
     // Tabel `payments`
-    await queryInterface.createTable('payments', {
+    await queryInterface.createTable("payments", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -266,19 +285,19 @@ module.exports = {
         type: Sequelize.STRING,
       },
       payment_status: {
-        type: Sequelize.ENUM('pending', 'verified'),
+        type: Sequelize.ENUM("pending", "verified"),
         allowNull: false,
-        defaultValue: 'pending',
+        defaultValue: "pending",
       },
       uploaded_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
 
     // Tabel `messages`
-    await queryInterface.createTable('messages', {
+    await queryInterface.createTable("messages", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
@@ -295,124 +314,124 @@ module.exports = {
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
 
     // Tambahkan relasi kunci asing (Foreign Keys)
-    await queryInterface.addConstraint('products', {
-      fields: ['category_id'],
-      type: 'foreign key',
-      name: 'FK_products_category',
+    await queryInterface.addConstraint("products", {
+      fields: ["category_id"],
+      type: "foreign key",
+      name: "FK_products_category",
       references: {
-        table: 'categories',
-        field: 'id'
+        table: "categories",
+        field: "id",
       },
-      onDelete: 'SET NULL',
+      onDelete: "SET NULL",
     });
-    await queryInterface.addConstraint('carts', {
-      fields: ['user_id'],
-      type: 'foreign key',
-      name: 'FK_carts_user',
+    await queryInterface.addConstraint("carts", {
+      fields: ["user_id"],
+      type: "foreign key",
+      name: "FK_carts_user",
       references: {
-        table: 'users',
-        field: 'id'
+        table: "users",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('cart_items', {
-      fields: ['cart_id'],
-      type: 'foreign key',
-      name: 'FK_cart_items_cart',
+    await queryInterface.addConstraint("cart_items", {
+      fields: ["cart_id"],
+      type: "foreign key",
+      name: "FK_cart_items_cart",
       references: {
-        table: 'carts',
-        field: 'id'
+        table: "carts",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('cart_items', {
-      fields: ['product_id'],
-      type: 'foreign key',
-      name: 'FK_cart_items_product',
+    await queryInterface.addConstraint("cart_items", {
+      fields: ["product_id"],
+      type: "foreign key",
+      name: "FK_cart_items_product",
       references: {
-        table: 'products',
-        field: 'id'
+        table: "products",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('orders', {
-      fields: ['user_id'],
-      type: 'foreign key',
-      name: 'FK_orders_user',
+    await queryInterface.addConstraint("orders", {
+      fields: ["user_id"],
+      type: "foreign key",
+      name: "FK_orders_user",
       references: {
-        table: 'users',
-        field: 'id'
+        table: "users",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('order_items', {
-      fields: ['order_id'],
-      type: 'foreign key',
-      name: 'FK_order_items_order',
+    await queryInterface.addConstraint("order_items", {
+      fields: ["order_id"],
+      type: "foreign key",
+      name: "FK_order_items_order",
       references: {
-        table: 'orders',
-        field: 'id'
+        table: "orders",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('order_items', {
-      fields: ['product_id'],
-      type: 'foreign key',
-      name: 'FK_order_items_product',
+    await queryInterface.addConstraint("order_items", {
+      fields: ["product_id"],
+      type: "foreign key",
+      name: "FK_order_items_product",
       references: {
-        table: 'products',
-        field: 'id'
+        table: "products",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('shipping', {
-      fields: ['order_id'],
-      type: 'foreign key',
-      name: 'FK_shipping_order',
+    await queryInterface.addConstraint("shipping", {
+      fields: ["order_id"],
+      type: "foreign key",
+      name: "FK_shipping_order",
       references: {
-        table: 'orders',
-        field: 'id'
+        table: "orders",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('payments', {
-      fields: ['order_id'],
-      type: 'foreign key',
-      name: 'FK_payments_order',
+    await queryInterface.addConstraint("payments", {
+      fields: ["order_id"],
+      type: "foreign key",
+      name: "FK_payments_order",
       references: {
-        table: 'orders',
-        field: 'id'
+        table: "orders",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint('messages', {
-      fields: ['user_id'],
-      type: 'foreign key',
-      name: 'FK_messages_user',
+    await queryInterface.addConstraint("messages", {
+      fields: ["user_id"],
+      type: "foreign key",
+      name: "FK_messages_user",
       references: {
-        table: 'users',
-        field: 'id'
+        table: "users",
+        field: "id",
       },
-      onDelete: 'CASCADE',
+      onDelete: "CASCADE",
     });
   },
 
   down: async (queryInterface, Sequelize) => {
     // Menghapus tabel secara berurutan
-    await queryInterface.dropTable('messages');
-    await queryInterface.dropTable('payments');
-    await queryInterface.dropTable('shipping');
-    await queryInterface.dropTable('order_items');
-    await queryInterface.dropTable('orders');
-    await queryInterface.dropTable('cart_items');
-    await queryInterface.dropTable('carts');
-    await queryInterface.dropTable('products');
-    await queryInterface.dropTable('categories');
-    await queryInterface.dropTable('users');
-  }
+    await queryInterface.dropTable("messages");
+    await queryInterface.dropTable("payments");
+    await queryInterface.dropTable("shipping");
+    await queryInterface.dropTable("order_items");
+    await queryInterface.dropTable("orders");
+    await queryInterface.dropTable("cart_items");
+    await queryInterface.dropTable("carts");
+    await queryInterface.dropTable("products");
+    await queryInterface.dropTable("categories");
+    await queryInterface.dropTable("users");
+  },
 };

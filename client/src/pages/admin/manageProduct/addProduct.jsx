@@ -1,3 +1,4 @@
+// src/pages/admin/manageProduct/addProduct.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../../layouts/sidebar";
 import { adminMenu } from "../../../layouts/layoutAdmin/adminMenu";
@@ -10,6 +11,7 @@ const AddProduct = () => {
     name: "",
     price: "",
     description: "",
+    stock: "", // <-- Menambahkan state stock
     thumbnail: null,
     images: [],
     category_id: "",
@@ -125,6 +127,7 @@ const AddProduct = () => {
     formData.append("name", form.name);
     formData.append("price", form.price);
     formData.append("description", form.description);
+    formData.append("stock", form.stock); // <-- Menambahkan stock ke formData
     formData.append("category_id", form.category_id);
     if (form.thumbnail) {
       formData.append("thumbnail", form.thumbnail);
@@ -143,7 +146,7 @@ const AddProduct = () => {
 
       if (res.ok) {
         setStatus({ type: "success", message: "Produk berhasil ditambahkan!" });
-        setForm({ name: "", price: "", description: "", thumbnail: null, images: [], category_id: "" });
+        setForm({ name: "", price: "", description: "", stock: "", thumbnail: null, images: [], category_id: "" });
         setTimeout(() => {
           navigate("/admin/list-produk");
         }, 2000);
@@ -181,6 +184,10 @@ const AddProduct = () => {
             <div>
               <label htmlFor="price" className="block text-sm font-medium text-darkgray">Harga</label>
               <input type="number" id="price" name="price" value={form.price} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
+            </div>
+            <div>
+              <label htmlFor="stock" className="block text-sm font-medium text-darkgray">Stok</label>
+              <input type="number" id="stock" name="stock" value={form.stock} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
             </div>
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-darkgray">Deskripsi</label>

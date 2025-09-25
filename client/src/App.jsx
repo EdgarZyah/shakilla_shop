@@ -18,7 +18,7 @@ import ProtectedRoute from "./components/protectedRoute";
 import ProfileUser from "./pages/user/profile";
 import OrdersUser from "./pages/user/orders";
 import EditProfileUser from "./pages/user/editProfile";
-import CartPage from "./pages/cart"; // Import CartPage
+import CartPage from "./pages/cart";
 
 function App() {
   return (

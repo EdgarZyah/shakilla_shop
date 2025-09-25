@@ -74,6 +74,7 @@ const ProductPage = () => {
         body: JSON.stringify({
           product_id: product.id,
           quantity: quantity,
+          size: selectedSize, // <-- Menambahkan ukuran yang dipilih
         }),
       });
 

@@ -1,3 +1,4 @@
+// src/pages/admin/manageProduct/editProduct.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../../layouts/sidebar";
 import { adminMenu } from "../../../layouts/layoutAdmin/adminMenu";
@@ -10,6 +11,7 @@ const EditProduct = () => {
     name: "",
     price: "",
     description: "",
+    stock: "", // <-- Menambahkan state stock
     thumbnail: null,
     existingThumbnail: "",
     images: [],
@@ -36,34 +38,36 @@ const EditProduct = () => {
     try {
       const res = await fetch(`http://localhost:3001/api/products/${id}`);
       const data = await res.json();
-      if (res.ok) {
-        let existingImages = [];
-        if (data.image_url && typeof data.image_url === 'string') {
-          try {
-            existingImages = JSON.parse(data.image_url);
-          } catch (e) {
-            console.error("Gagal mengurai image_url JSON string:", e);
-          }
-        } else if (Array.isArray(data.image_url)) {
-          existingImages = data.image_url;
-        }
 
-        setForm({
-          name: data.name,
-          price: data.price,
-          description: data.description,
-          thumbnail: null,
-          existingThumbnail: data.thumbnail_url || "",
-          images: [],
-          existingImages: existingImages || [],
-          category_id: data.category_id,
-        });
-      } else {
-        setStatus({ type: "error", message: data.message || "Gagal mengambil data produk." });
+      if (!res.ok) {
+        throw new Error(data.message || "Gagal mengambil data produk.");
       }
+
+      let imageUrls = [];
+      if (data.image_url && typeof data.image_url === "string") {
+        try {
+          imageUrls = JSON.parse(data.image_url);
+        } catch (e) {
+          console.error("Gagal mengurai image_url JSON string:", e);
+        }
+      } else if (Array.isArray(data.image_url)) {
+        imageUrls = data.image_url;
+      }
+
+      setForm({
+        name: data.name,
+        price: data.price,
+        description: data.description,
+        stock: data.stock, // <-- Mengambil nilai stock
+        thumbnail: null,
+        existingThumbnail: data.thumbnail_url || "",
+        images: [],
+        existingImages: imageUrls || [],
+        category_id: data.category_id,
+      });
+      setLoading(false);
     } catch (err) {
       setStatus({ type: "error", message: "Terjadi kesalahan jaringan saat mengambil produk." });
-    } finally {
       setLoading(false);
     }
   };
@@ -146,6 +150,7 @@ const EditProduct = () => {
     formData.append("name", form.name);
     formData.append("price", form.price);
     formData.append("description", form.description);
+    formData.append("stock", form.stock); // <-- Menambahkan stock ke formData
     formData.append("category_id", form.category_id);
     formData.append("existing_images", JSON.stringify(form.existingImages));
     if (form.thumbnail) {
@@ -221,6 +226,10 @@ const EditProduct = () => {
             <div>
               <label htmlFor="price" className="block text-sm font-medium text-darkgray">Harga</label>
               <input type="number" id="price" name="price" value={form.price} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
+            </div>
+            <div>
+              <label htmlFor="stock" className="block text-sm font-medium text-darkgray">Stok</label>
+              <input type="number" id="stock" name="stock" value={form.stock} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
             </div>
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-darkgray">Deskripsi</label>

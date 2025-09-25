@@ -1,3 +1,4 @@
+// server/models/cartItem.js
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/dbconfig");
 
@@ -8,6 +9,7 @@ const CartItem = sequelize.define(
     cart_id: DataTypes.INTEGER,
     product_id: DataTypes.INTEGER,
     quantity: DataTypes.INTEGER,
+    size: DataTypes.STRING,
   },
   {
     tableName: "cart_items",

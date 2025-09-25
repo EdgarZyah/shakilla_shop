@@ -5,19 +5,39 @@ import Navbar from '../layouts/navbar';
 import Footer from '../layouts/footer';
 import Cookies from 'js-cookie';
 import { useNavigate } from 'react-router-dom';
+import WhatsappRedirect from '../components/WhatsappRedirect';
+import { Link } from 'react-router-dom';
 
 const Cart = () => {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [checkoutData, setCheckoutData] = useState(null);
 
   const userId = Cookies.get('userId');
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchCartData();
+    fetchUserData();
   }, [userId]);
+
+  const fetchUserData = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`http://localhost:3001/api/users/${userId}`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setUserData(data);
+      }
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    }
+  };
 
   const fetchCartData = async () => {
     if (!userId) {
@@ -35,11 +55,13 @@ const Cart = () => {
         setCart(data);
         setError(null);
       } else {
+        setCart(null);
         setError(data.message || "Gagal mengambil data keranjang.");
       }
     } catch (err) {
       setError("Terjadi kesalahan jaringan.");
       console.error("Error fetching cart:", err);
+      setCart(null);
     } finally {
       setLoading(false);
     }
@@ -54,7 +76,7 @@ const Cart = () => {
       });
       if (response.ok) {
         setStatus({ type: 'success', message: 'Item berhasil dihapus dari keranjang.' });
-        fetchCartData(); // Muat ulang data keranjang
+        fetchCartData();
       } else {
         const data = await response.json();
         setStatus({ type: 'error', message: data.message || 'Gagal menghapus item.' });
@@ -65,6 +87,30 @@ const Cart = () => {
     }
   };
   
+  const handleUpdateQuantity = async (itemId, newQuantity) => {
+    setStatus({ type: 'loading', message: 'Memperbarui kuantitas...' });
+    try {
+        const response = await fetch(`http://localhost:3001/api/carts/item/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ quantity: newQuantity }),
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            setStatus({ type: 'success', message: data.message || 'Kuantitas berhasil diperbarui.' });
+            fetchCartData();
+        } else {
+            const data = await response.json();
+            setStatus({ type: 'error', message: data.message || 'Gagal memperbarui kuantitas.' });
+        }
+    } catch (err) {
+        setStatus({ type: 'error', message: 'Terjadi kesalahan jaringan.' });
+        console.error('Error updating quantity:', err);
+    }
+  };
+
   const handleCheckout = async () => {
       setStatus({ type: 'loading', message: 'Memproses pesanan...' });
       try {
@@ -76,10 +122,15 @@ const Cart = () => {
 
           const data = await response.json();
           if (response.ok) {
-              setStatus({ type: 'success', message: 'Checkout berhasil! Redirecting...' });
-              setTimeout(() => {
-                  navigate('/user/orders');
-              }, 1500);
+              setStatus({ type: 'success', message: 'Checkout berhasil! Siapkan pesan WhatsApp...' });
+              
+              const newOrderData = {
+                  order_id: data.order_id,
+                  total_price: calculateSubtotal(),
+                  created_at: new Date().toISOString(),
+              };
+              setCheckoutData(newOrderData);
+
           } else {
               setStatus({ type: 'error', message: data.message || 'Gagal melakukan checkout.' });
           }
@@ -139,7 +190,7 @@ const Cart = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2"
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.182 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 110 4 2 2 0 010-4z"
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.182 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                     />
                   </svg>
                   <h3 className="mt-4 text-lg font-medium text-darkgray">
@@ -171,14 +222,34 @@ const Cart = () => {
                           <p className="mt-1 text-sm text-darkgray/70">
                             Harga satuan: Rp {item.Product?.price?.toLocaleString('id-ID')}
                           </p>
+                          <p className="mt-1 text-sm text-darkgray/70">
+                            Ukuran: {item.size || 'N/A'}
+                          </p>
                         </div>
                         <div className="flex flex-1 items-end justify-between text-sm">
-                          <p className="text-darkgray/70">Qty {item.quantity}</p>
+                          <div className="flex items-center gap-2 text-darkgray/70">
+                              <button 
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)} 
+                                disabled={item.quantity <= 1 || status?.type === 'loading'}
+                                className="w-6 h-6 flex items-center justify-center border border-lightmauve rounded-full text-lg font-bold hover:bg-lightmauve disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                -
+                              </button>
+                              <span>{item.quantity}</span>
+                              <button 
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                disabled={status?.type === 'loading'}
+                                className="w-6 h-6 flex items-center justify-center border border-lightmauve rounded-full text-lg font-bold hover:bg-lightmauve disabled:opacity-50"
+                              >
+                                +
+                              </button>
+                          </div>
                           <div className="flex">
                             <button
                               type="button"
                               onClick={() => handleDeleteItem(item.id)}
                               className="font-medium text-elegantburgundy hover:text-softpink"
+                              disabled={status?.type === 'loading'}
                             >
                               Hapus
                             </button>
@@ -210,13 +281,30 @@ const Cart = () => {
                 </div>
               )}
 
-              <button
-                onClick={handleCheckout}
-                disabled={subtotal === 0 || status?.type === 'loading'}
-                className="w-full bg-elegantburgundy text-purewhite py-3 rounded-md font-semibold hover:bg-softpink transition disabled:opacity-50"
-              >
-                {status?.type === 'loading' ? "Memproses..." : "Checkout"}
-              </button>
+              {/* Tampilkan tombol checkout atau tombol WhatsApp setelah checkout berhasil */}
+              {checkoutData ? (
+                <div className="space-y-2">
+                    <WhatsappRedirect
+                        order={checkoutData}
+                        user={userData}
+                        cartItems={cart.CartItems}
+                    />
+                    <Link
+                        to="/user/orders"
+                        className="w-full flex justify-center bg-gray-200 text-darkgray py-3 rounded-md font-semibold hover:bg-gray-300 transition"
+                    >
+                        Lihat Pesanan Saya
+                    </Link>
+                </div>
+              ) : (
+                <button
+                  onClick={handleCheckout}
+                  disabled={subtotal === 0 || status?.type === 'loading'}
+                  className="w-full bg-elegantburgundy text-purewhite py-3 rounded-md font-semibold hover:bg-softpink transition disabled:opacity-50"
+                >
+                  {status?.type === 'loading' ? "Memproses..." : "Checkout"}
+                </button>
+              )}
             </div>
           </div>
         </div>

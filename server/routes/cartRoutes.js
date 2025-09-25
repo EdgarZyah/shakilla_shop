@@ -43,7 +43,7 @@ router.get("/carts/user/:userId", authenticateUser, async (req, res) => {
 
 router.post("/carts", authenticateUser, async (req, res) => {
     try {
-        const { product_id, quantity } = req.body;
+        const { product_id, quantity, size } = req.body;
         const userId = req.userId;
         
         let cart = await Cart.findOne({ where: { user_id: userId } });
@@ -54,7 +54,8 @@ router.post("/carts", authenticateUser, async (req, res) => {
         let cartItem = await CartItem.findOne({ 
             where: {
                 cart_id: cart.id,
-                product_id: product_id
+                product_id: product_id,
+                size: size
             }
         });
         
@@ -69,7 +70,8 @@ router.post("/carts", authenticateUser, async (req, res) => {
             cartItem = await CartItem.create({
                 cart_id: cart.id,
                 product_id: product_id,
-                quantity: quantity
+                quantity: quantity,
+                size: size
             });
         }
         
@@ -77,6 +79,39 @@ router.post("/carts", authenticateUser, async (req, res) => {
     } catch (err) {
         console.error("Error adding to cart:", err);
         res.status(500).json({ message: "Gagal menambahkan produk ke keranjang.", error: err.message });
+    }
+});
+
+// Rute baru untuk memperbarui kuantitas item
+router.put("/carts/item/:itemId", authenticateUser, async (req, res) => {
+    try {
+        const itemId = req.params.itemId;
+        const { quantity } = req.body;
+        const userId = req.userId;
+
+        const cart = await Cart.findOne({ where: { user_id: userId } });
+        if (!cart) {
+            return res.status(404).json({ message: "Keranjang tidak ditemukan." });
+        }
+
+        const cartItem = await CartItem.findOne({ where: { id: itemId, cart_id: cart.id } });
+        if (!cartItem) {
+            return res.status(404).json({ message: "Item keranjang tidak ditemukan." });
+        }
+        
+        if (quantity < 1) {
+            // Hapus item jika kuantitas menjadi 0
+            await cartItem.destroy();
+            return res.status(200).json({ message: "Item berhasil dihapus dari keranjang." });
+        }
+
+        cartItem.quantity = quantity;
+        await cartItem.save();
+
+        res.status(200).json({ message: "Kuantitas berhasil diperbarui!", cartItem });
+    } catch (err) {
+        console.error("Error updating cart item:", err);
+        res.status(500).json({ message: "Gagal memperbarui kuantitas item.", error: err.message });
     }
 });
 

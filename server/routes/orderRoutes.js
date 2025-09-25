@@ -310,6 +310,7 @@ router.post("/checkout", authenticateUser, async (req, res) => {
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.Product.price,
+      size: item.size, // <-- Memindahkan ukuran dari keranjang ke pesanan
     }));
 
     await OrderItem.bulkCreate(orderItems, { transaction });

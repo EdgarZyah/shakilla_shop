@@ -34,7 +34,9 @@ const CartDropdown = ({ cartItems, onRemoveItem, isCartOpen, onToggle }) => {
                   <img src={item.Product?.thumbnail_url} alt={item.Product?.name} className="h-10 w-10 object-cover rounded" />
                   <div>
                     <p className="font-semibold text-darkgray">{item.Product?.name}</p>
-                    <p className="text-sm text-darkgray">Qty: {item.quantity}</p>
+                    <p className="text-sm text-darkgray">
+                        Qty: {item.quantity} | Ukuran: {item.size || 'N/A'}
+                    </p>
                   </div>
                 </div>
                 <button

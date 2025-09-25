@@ -53,12 +53,12 @@ router.get("/products/:id", async (req, res) => {
 // Endpoint untuk menambahkan produk baru dengan thumbnail dan multiple gambar
 router.post("/products", formidable({ multiples: true }), async (req, res) => {
   try {
-    const { name, price, description, category_id } = req.fields;
+    const { name, price, description, category_id, stock } = req.fields; // <-- Ditambahkan `stock`
     const thumbnail = req.files.thumbnail;
     const images = req.files.images;
 
-    if (!name || !price || !description || !category_id || !thumbnail) {
-      return res.status(400).json({ message: "Nama, harga, deskripsi, kategori, dan thumbnail wajib diisi." });
+    if (!name || !price || !description || !category_id || !thumbnail || !stock) {
+      return res.status(400).json({ message: "Nama, harga, deskripsi, kategori, thumbnail, dan stok wajib diisi." });
     }
 
     const uploadDir = path.join(__dirname, "../../client/uploads/products");
@@ -75,8 +75,8 @@ router.post("/products", formidable({ multiples: true }), async (req, res) => {
     const imageUrls = [];
     if (images) {
       const filesToProcess = Array.isArray(images) ? images : [images];
-      if (filesToProcess.length > 4) {
-        return res.status(400).json({ message: "Maksimal 4 gambar utama diperbolehkan." });
+      if (filesToProcess.length + existingImageUrls.length > 4) {
+        return res.status(400).json({ message: `Maksimal 4 gambar utama diperbolehkan.` });
       }
 
       for (const image of filesToProcess) {
@@ -95,6 +95,7 @@ router.post("/products", formidable({ multiples: true }), async (req, res) => {
       category_id,
       thumbnail_url: thumbnailUrl,
       image_url: imageUrls,
+      stock, // <-- Menyimpan nilai stok
     });
 
     res.status(201).json({ message: "Produk berhasil ditambahkan!", product: newProduct });
@@ -108,7 +109,7 @@ router.post("/products", formidable({ multiples: true }), async (req, res) => {
 router.put("/products/:id", formidable({ multiples: true }), async (req, res) => {
   try {
     const productId = req.params.id;
-    const { name, price, description, category_id, existing_images } = req.fields;
+    const { name, price, description, category_id, existing_images, stock } = req.fields; // <-- Ditambahkan `stock`
     const newThumbnail = req.files.thumbnail;
     const newImages = req.files.images;
 
@@ -158,6 +159,7 @@ router.put("/products/:id", formidable({ multiples: true }), async (req, res) =>
     product.category_id = category_id;
     product.thumbnail_url = thumbnail_url;
     product.image_url = existingImageUrls;
+    product.stock = stock; // <-- Memperbarui nilai stok
 
     await product.save();
 

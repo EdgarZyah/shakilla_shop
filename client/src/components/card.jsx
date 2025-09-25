@@ -5,7 +5,8 @@ import { Link } from "react-router-dom";
 const Card = ({ product, onAddToCart }) => {
   if (!product) return null;
 
-  const { id, name, price, brand, thumbnail_url } = product;
+  const { id, name, price, brand, thumbnail_url, stock } = product;
+  const isOutOfStock = stock <= 0;
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-lightmauve bg-purewhite shadow-sm transition-all duration-300 hover:shadow-lg">
@@ -23,7 +24,13 @@ const Card = ({ product, onAddToCart }) => {
         )}
       </Link>
 
-      {/* Badge Brand */}
+      {/* Badge Stok */}
+      {isOutOfStock && (
+        <span className="absolute left-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-medium text-purewhite">
+          Stok Habis
+        </span>
+      )}
+      
       {brand && (
         <span className="absolute left-3 top-3 rounded-full bg-purewhite/80 px-3 py-1 text-xs font-medium text-darkgray backdrop-blur-sm">
           {brand}
@@ -51,8 +58,9 @@ const Card = ({ product, onAddToCart }) => {
           >
             <button
               onClick={() => onAddToCart?.(id)}
-              className="group flex items-center gap-1 rounded-full bg-elegantburgundy hover:bg-gray-700 px-4 py-2 text-sm font-medium text-purewhite transition-all duration-300 hover:bg-softpink"
+              className={`group flex items-center gap-1 rounded-full ${isOutOfStock ? 'bg-gray-400 cursor-not-allowed' : 'bg-elegantburgundy hover:bg-gray-700'} px-4 py-2 text-sm font-medium text-purewhite transition-all duration-300 hover:bg-softpink`}
               aria-label={`Tambah ${name} ke keranjang`}
+              disabled={isOutOfStock}
             >
               {/* Ikon Keranjang */}
               <svg

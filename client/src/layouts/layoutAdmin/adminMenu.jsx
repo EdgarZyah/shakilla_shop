@@ -18,6 +18,7 @@ export const adminMenu = [
     children: [
       { label: "Tambah Produk", to: "/admin/tambah-produk" },
       { label: "List Produk", to: "/admin/list-produk" },
+      { label: "List Kategori", to: "/admin/list-kategori" },
     ],
   },
   { 
