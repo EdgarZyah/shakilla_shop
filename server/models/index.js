@@ -1,15 +1,5 @@
 const sequelize = require("../config/dbconfig");
 
-// Test koneksi
-sequelize
-  .authenticate()
-  .then(() => {
-    console.log("Koneksi database berhasil!");
-  })
-  .catch((error) => {
-    console.error("Koneksi gagal:", error);
-  });
-
 const User = require("./user");
 const Order = require("./order");
 const Shipping = require("./shipping");
