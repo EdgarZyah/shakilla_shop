@@ -104,9 +104,6 @@ module.exports = {
         type: Sequelize.INTEGER,
         defaultValue: 0,
       },
-      size: { // <-- Kolom size ditambahkan
-        type: Sequelize.STRING,
-      },
       category_id: {
         type: Sequelize.INTEGER,
       },
@@ -175,12 +172,12 @@ module.exports = {
         allowNull: false,
         defaultValue: 1,
       },
-      size: { // <-- Kolom size ditambahkan
+      size: { 
         type: Sequelize.STRING,
       },
     });
 
-    // Tabel `orders`
+    // Tabel `orders` (Diperbarui untuk menggabungkan status pengiriman)
     await queryInterface.createTable("orders", {
       id: {
         type: Sequelize.INTEGER,
@@ -191,14 +188,24 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
       },
+      // Status gabungan: pending, menunggu pembayaran, diproses, dikirim, diterima, dibatalkan
       order_status: {
-        type: Sequelize.ENUM("pending", "diproses", "dikirim", "selesai"),
+        type: Sequelize.ENUM("pending", "menunggu pembayaran", "diproses", "dikirim", "diterima", "selesai", "dibatalkan"),
         allowNull: false,
         defaultValue: "pending",
       },
       total_price: {
         type: Sequelize.DECIMAL(12, 2),
         allowNull: false,
+      },
+      shipping_address: { // Pindah dari tabel shipping
+        type: Sequelize.TEXT,
+      },
+      shipped_at: {      // Pindah dari tabel shipping
+        type: Sequelize.DATE,
+      },
+      received_at: {     // Pindah dari tabel shipping
+        type: Sequelize.DATE,
       },
       created_at: {
         type: Sequelize.DATE,
@@ -213,7 +220,7 @@ module.exports = {
         ),
       },
     });
-
+    
     // Tabel `order_items`
     await queryInterface.createTable("order_items", {
       id: {
@@ -237,36 +244,8 @@ module.exports = {
         type: Sequelize.DECIMAL(12, 2),
         allowNull: false,
       },
-      size: { // <-- Kolom size ditambahkan
+      size: { 
         type: Sequelize.STRING,
-      },
-    });
-
-    // Tabel `shipping`
-    await queryInterface.createTable("shipping", {
-      id: {
-        type: Sequelize.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-      },
-      order_id: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-      },
-      shipping_address: {
-        type: Sequelize.TEXT,
-        allowNull: false,
-      },
-      shipping_status: {
-        type: Sequelize.ENUM("pending", "dikirim", "diterima"),
-        allowNull: false,
-        defaultValue: "pending",
-      },
-      shipped_at: {
-        type: Sequelize.DATE,
-      },
-      received_at: {
-        type: Sequelize.DATE,
       },
     });
 
@@ -323,109 +302,74 @@ module.exports = {
       fields: ["category_id"],
       type: "foreign key",
       name: "FK_products_category",
-      references: {
-        table: "categories",
-        field: "id",
-      },
+      references: { table: "categories", field: "id" },
       onDelete: "SET NULL",
     });
     await queryInterface.addConstraint("carts", {
       fields: ["user_id"],
       type: "foreign key",
       name: "FK_carts_user",
-      references: {
-        table: "users",
-        field: "id",
-      },
+      references: { table: "users", field: "id" },
       onDelete: "CASCADE",
     });
     await queryInterface.addConstraint("cart_items", {
       fields: ["cart_id"],
       type: "foreign key",
       name: "FK_cart_items_cart",
-      references: {
-        table: "carts",
-        field: "id",
-      },
+      references: { table: "carts", field: "id" },
       onDelete: "CASCADE",
     });
     await queryInterface.addConstraint("cart_items", {
       fields: ["product_id"],
       type: "foreign key",
       name: "FK_cart_items_product",
-      references: {
-        table: "products",
-        field: "id",
-      },
+      references: { table: "products", field: "id" },
       onDelete: "CASCADE",
     });
     await queryInterface.addConstraint("orders", {
       fields: ["user_id"],
       type: "foreign key",
       name: "FK_orders_user",
-      references: {
-        table: "users",
-        field: "id",
-      },
+      references: { table: "users", field: "id" },
       onDelete: "CASCADE",
     });
     await queryInterface.addConstraint("order_items", {
       fields: ["order_id"],
       type: "foreign key",
       name: "FK_order_items_order",
-      references: {
-        table: "orders",
-        field: "id",
-      },
+      references: { table: "orders", field: "id" },
       onDelete: "CASCADE",
     });
     await queryInterface.addConstraint("order_items", {
       fields: ["product_id"],
       type: "foreign key",
       name: "FK_order_items_product",
-      references: {
-        table: "products",
-        field: "id",
-      },
+      references: { table: "products", field: "id" },
       onDelete: "CASCADE",
     });
-    await queryInterface.addConstraint("shipping", {
-      fields: ["order_id"],
-      type: "foreign key",
-      name: "FK_shipping_order",
-      references: {
-        table: "orders",
-        field: "id",
-      },
-      onDelete: "CASCADE",
-    });
+    // Menghapus relasi shipping lama karena tabel shipping dihapus
     await queryInterface.addConstraint("payments", {
       fields: ["order_id"],
       type: "foreign key",
       name: "FK_payments_order",
-      references: {
-        table: "orders",
-        field: "id",
-      },
+      references: { table: "orders", field: "id" },
       onDelete: "CASCADE",
     });
     await queryInterface.addConstraint("messages", {
       fields: ["user_id"],
       type: "foreign key",
       name: "FK_messages_user",
-      references: {
-        table: "users",
-        field: "id",
-      },
+      references: { table: "users", field: "id" },
       onDelete: "CASCADE",
     });
   },
 
   down: async (queryInterface, Sequelize) => {
     // Menghapus tabel secara berurutan
+    await queryInterface.dropTable("hero_content");
     await queryInterface.dropTable("messages");
     await queryInterface.dropTable("payments");
-    await queryInterface.dropTable("shipping");
+    // Tabel shipping telah dihapus
     await queryInterface.dropTable("order_items");
     await queryInterface.dropTable("orders");
     await queryInterface.dropTable("cart_items");

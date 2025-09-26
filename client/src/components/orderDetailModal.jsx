@@ -1,5 +1,4 @@
-// client/src/components/OrderDetailModal.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const OrderDetailModal = ({
   isOpen,
@@ -7,14 +6,22 @@ const OrderDetailModal = ({
   order,
   onVerifyPayment,
   onUpdateStatus,
+  onCancelOrder,
   modalLoading,
   updateStatus,
+  userRole, // <-- Tambahkan prop ini
 }) => {
   if (!isOpen || !order) return null;
 
-  const [newStatus, setNewStatus] = useState(
-    order.Shipping?.shipping_status || order.order_status
-  );
+  const currentOrderStatus = order.order_status;
+  const isCancelled = currentOrderStatus === "dibatalkan";
+  const isPaymentPending = currentOrderStatus === "pending" || currentOrderStatus === "menunggu pembayaran";
+
+  const [newStatus, setNewStatus] = useState(currentOrderStatus);
+
+  useEffect(() => {
+    setNewStatus(currentOrderStatus);
+  }, [currentOrderStatus]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -23,11 +30,12 @@ const OrderDetailModal = ({
         return "bg-yellow-100 text-yellow-800";
       case "diproses":
       case "dikirim":
-        return "bg-blue-100 text-blue-800";
-      case "selesai":
       case "diterima":
+      case "selesai":
       case "verified":
         return "bg-green-100 text-green-800";
+      case "dibatalkan":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -45,9 +53,29 @@ const OrderDetailModal = ({
     return new Date(dateString).toLocaleDateString("id-ID", options);
   };
 
+  const statusOptions = [
+    { value: "diproses", label: "Diproses" },
+    { value: "dikirim", label: "Dikirim" },
+    { value: "diterima", label: "Diterima/Selesai" },
+  ];
+  
+  if (!statusOptions.some(opt => opt.value === currentOrderStatus) && !isPaymentPending && !isCancelled) {
+    statusOptions.push({ value: currentOrderStatus, label: currentOrderStatus.charAt(0).toUpperCase() + currentOrderStatus.slice(1) });
+  }
+
+  const availableStatusOptions = statusOptions.filter(option => {
+    if (currentOrderStatus === 'diproses') {
+      return option.value !== 'diproses';
+    }
+    if (currentOrderStatus === 'dikirim' && option.value !== 'diterima') {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div className="fixed inset-0 bg-black/50 overflow-y-auto flex justify-center items-center p-4 z-50">
-      <div className="bg-purewhite p-6 rounded-lg shadow-xl w-full max-w-4xl h-2/3 md:max-h-screen overflow-y-auto">
+      <div className="bg-purewhite p-6 rounded-lg shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
         {/* Modal Header */}
         <div className="flex justify-between items-center mb-4 pb-2 border-b border-lightmauve">
           <h3 className="text-xl md:text-2xl font-bold text-darkgray">
@@ -81,7 +109,7 @@ const OrderDetailModal = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Bagian Kiri: Ringkasan Pesanan & Pengiriman */}
+            {/* Bagian Kiri: Informasi Umum, Ringkasan Pesanan, Item Pesanan */}
             <div className="flex flex-col space-y-6">
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 pb-2 border-b border-lightmauve">
@@ -97,35 +125,7 @@ const OrderDetailModal = ({
                   {order.User?.email || "N/A"}
                 </p>
               </div>
-
-              <div>
-                <h4 className="font-bold text-lg text-darkgray mb-2 pb-2 border-b border-lightmauve">
-                  Item Pesanan
-                </h4>
-                <div className="h-20 overflow-y-auto">
-                  <ul className="divide-y divide-lightmauve">
-                    {order.OrderItems?.map((item) => (
-                      <li
-                        key={item.id}
-                        className="py-3 flex justify-between items-center"
-                      >
-                        <div>
-                          <p className="text-darkgray font-medium">
-                            {item.Product?.name || `ID: ${item.product_id}`}
-                          </p>
-                          <p className="text-sm text-darkgray/70">
-                            Jumlah: {item.quantity} | Ukuran:{" "}
-                            {item.size || "N/A"}
-                          </p>
-                        </div>
-                        <p className="text-darkgray font-medium">
-                          Rp {item.price?.toLocaleString("id-ID")}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>{" "}
-                </div>
-              </div>
+              
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 pb-2 border-b border-lightmauve">
                   Ringkasan Pesanan
@@ -138,52 +138,71 @@ const OrderDetailModal = ({
                   <span>Total Harga:</span>
                   <span>Rp {order.total_price?.toLocaleString("id-ID")}</span>
                 </div>
+                <div className="mt-2">
+                   <p className="text-darkgray font-medium">Status Pesanan:</p>
+                   <span className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadge(currentOrderStatus)}`}>
+                     {currentOrderStatus}
+                   </span>
+                 </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-lg text-darkgray mb-2 pb-2 border-b border-lightmauve">
+                  Item Pesanan
+                </h4>
+                <div className="max-h-40 overflow-y-auto">
+                    <ul className="divide-y divide-lightmauve">
+                      {order.OrderItems?.map((item) => (
+                        <li
+                          key={item.id}
+                          className="py-3 flex justify-between items-center"
+                        >
+                          <div>
+                            <p className="text-darkgray font-medium">
+                              {item.Product?.name || `ID: ${item.product_id}`}
+                            </p>
+                            <p className="text-sm text-darkgray/70">
+                              Jumlah: {item.quantity} | Ukuran:{" "}
+                              {item.size || "N/A"}
+                            </p>
+                          </div>
+                          <p className="text-darkgray font-medium">
+                            Rp {item.price?.toLocaleString("id-ID")}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                </div>
               </div>
             </div>
 
-            {/* Bagian Kanan: Bukti Pembayaran & Aksi Admin */}
+            {/* Bagian Kanan: Pengiriman, Bukti Pembayaran & Aksi Admin */}
             <div className="flex flex-col space-y-6">
+              
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 pb-2 border-b border-lightmauve">
                   Informasi Pengiriman
                 </h4>
-                {order.Shipping ? (
-                  <div className="space-y-2">
+                <div className="space-y-2">
                     <div>
-                      <p className="text-darkgray font-medium">Alamat:</p>
+                      <p className="text-darkgray font-medium">Alamat Pengiriman:</p>
                       <p className="text-darkgray">
-                        {order.Shipping.shipping_address}
+                        {order.shipping_address || (order.User?.address ? `Menggunakan Alamat Profil: ${order.User.address}` : "Alamat belum tercatat")}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-darkgray font-medium">
-                        Status Pengiriman:
-                      </p>
-                      <span
-                        className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadge(
-                          order.Shipping.shipping_status
-                        )}`}
-                      >
-                        {order.Shipping.shipping_status}
-                      </span>
-                    </div>
-                    {order.Shipping.shipped_at && (
+                    {order.shipped_at && (
                       <p className="text-sm text-darkgray/70">
-                        Dikirim pada: {formatDate(order.Shipping.shipped_at)}
+                        **Dikirim:** {formatDate(order.shipped_at)}
                       </p>
                     )}
-                    {order.Shipping.received_at && (
+                    {order.received_at && (
                       <p className="text-sm text-darkgray/70">
-                        Diterima pada: {formatDate(order.Shipping.received_at)}
+                        **Diterima:** {formatDate(order.received_at)}
                       </p>
                     )}
                   </div>
-                ) : (
-                  <p className="text-darkgray/70">
-                    Data pengiriman tidak tersedia.
-                  </p>
-                )}
               </div>
+
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 pb-2 border-b border-lightmauve">
                   Bukti Pembayaran
@@ -215,11 +234,16 @@ const OrderDetailModal = ({
                       alt="Bukti Pembayaran"
                       className="max-w-full h-auto rounded-md shadow object-contain"
                     />
+                    
+                    {/* Tombol verifikasi hanya jika pembayaran pending DAN admin */}
                     {order.Payment.payment_status === "pending" &&
-                      onVerifyPayment && (
+                      onVerifyPayment &&
+                      userRole === "admin" &&
+                      !isCancelled && (
                         <button
                           onClick={() => onVerifyPayment(order.id)}
                           className="mt-4 w-full bg-elegantburgundy hover:bg-softpink text-purewhite py-2 rounded-md transition disabled:opacity-50"
+                          disabled={modalLoading}
                         >
                           Verifikasi Pembayaran
                         </button>
@@ -232,17 +256,23 @@ const OrderDetailModal = ({
                 )}
               </div>
 
-              {onUpdateStatus && (
+              {/* Bagian Ubah Status hanya untuk Admin */}
+              {userRole === "admin" && !isCancelled && currentOrderStatus !== 'selesai' && (
                 <div>
                   <h4 className="font-bold text-lg text-darkgray mb-2 pb-2 border-b border-lightmauve">
-                    Ubah Status Pengiriman
+                    Ubah Status Pesanan
                   </h4>
+                  {isPaymentPending && (
+                      <div className="bg-yellow-100 text-yellow-800 p-3 rounded-md mb-3 text-sm">
+                          Pembayaran harus diverifikasi ('verified') sebelum mengubah status pesanan.
+                      </div>
+                  )}
                   {updateStatus && (
                     <div
                       className={`p-3 rounded-lg text-sm mb-2 ${
                         updateStatus.type === "success"
                           ? "bg-green-100 text-green-800"
-                          : "bg-softpink text-elegantburgundy"
+                          : "bg-red-100 text-red-800"
                       }`}
                     >
                       {updateStatus.message}
@@ -259,14 +289,23 @@ const OrderDetailModal = ({
                       value={newStatus}
                       onChange={(e) => setNewStatus(e.target.value)}
                       className="w-full sm:w-auto border border-lightmauve rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-elegantburgundy"
+                      disabled={modalLoading || isCancelled || isPaymentPending}
                     >
-                      <option value="pending">Menunggu Diproses</option>
-                      <option value="dikirim">Sedang Dikirim</option>
-                      <option value="diterima">Telah Diterima</option>
+                       {
+                        (currentOrderStatus === "diproses" || currentOrderStatus === "dikirim" || currentOrderStatus === "diterima") ? (
+                          <>
+                            <option value="diproses" disabled={currentOrderStatus !== 'diproses'}>Diproses</option>
+                            <option value="dikirim" disabled={currentOrderStatus === 'diterima'}>Dikirim</option>
+                            <option value="diterima">Diterima/Selesai</option>
+                          </>
+                        ) : (
+                          <option value={currentOrderStatus} disabled>{currentOrderStatus}</option>
+                        )
+                       }
                     </select>
                     <button
                       type="submit"
-                      disabled={modalLoading}
+                      disabled={modalLoading || isCancelled || isPaymentPending || newStatus === currentOrderStatus}
                       className="w-full sm:w-auto bg-elegantburgundy text-purewhite py-2 px-4 rounded-md font-semibold hover:bg-softpink transition disabled:opacity-50"
                     >
                       {modalLoading ? "..." : "Simpan"}
@@ -274,6 +313,20 @@ const OrderDetailModal = ({
                   </form>
                 </div>
               )}
+              {/* Tombol Batalkan Pesanan hanya untuk Admin */}
+              {userRole === "admin" && !isCancelled &&
+                (currentOrderStatus === "pending" ||
+                  currentOrderStatus === "menunggu pembayaran" ||
+                  currentOrderStatus === "diproses") &&
+                onCancelOrder && (
+                  <button
+                    onClick={onCancelOrder}
+                    className="mt-4 w-full bg-red-600 hover:bg-red-700 text-purewhite py-2 rounded-md transition disabled:opacity-50"
+                    disabled={modalLoading}
+                  >
+                    Batalkan Pesanan
+                  </button>
+                )}
             </div>
           </div>
         )}

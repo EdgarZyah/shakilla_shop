@@ -8,7 +8,7 @@ const Order = sequelize.define(
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     user_id: DataTypes.INTEGER,
     total_price: DataTypes.DECIMAL(12, 2),
-    order_status: DataTypes.ENUM('pending', 'menunggu pembayaran', 'diproses', 'dikirim', 'selesai'),
+    order_status: DataTypes.ENUM('pending', 'menunggu pembayaran', 'diproses', 'dikirim', 'selesai', 'dibatalkan'),
   },
   {
     tableName: "orders",

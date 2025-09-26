@@ -38,7 +38,6 @@ const DashboardUser = () => {
         if (ordersRes.ok) {
           setOrders(ordersData);
         } else {
-          // Tidak perlu error jika tidak ada pesanan, cukup set array kosong
           setOrders([]);
         }
       } catch (err) {
@@ -58,23 +57,21 @@ const DashboardUser = () => {
         return "bg-softpink/50 text-elegantburgundy";
       case "diproses":
       case "dikirim":
-        return "bg-elegantburgundy/50 text-purewhite";
-      case "selesai":
       case "diterima":
-        return "bg-elegantburgundy text-purewhite";
+      case "verified":
+      case "selesai":
+        return "bg-elegantburgundy/50 text-purewhite";
+      case "dibatalkan": 
+        return "bg-red-500 text-purewhite";
       default:
         return "bg-lightmauve text-darkgray";
     }
   };
 
   const getDisplayStatus = (order) => {
-    if (order.Shipping) {
-      return order.Shipping.shipping_status;
-    }
     return order.order_status;
   };
 
-  // Helper untuk memformat tanggal
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };

@@ -1,10 +1,11 @@
-// shakilla_shop/client/src/pages/admin/receipt.jsx
 import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { adminMenu } from "../../layouts/layoutAdmin/adminMenu";
 import OrderDetailModal from "../../components/orderDetailModal";
 import Table from "../../components/table";
 import Pagination from "../../components/pagination";
+import ModalHapus from "../../components/modalHapus";
+import Cookies from "js-cookie"; // <-- Tambahkan import ini
 
 const Receipt = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -17,10 +18,13 @@ const Receipt = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(null);
 
-  // State untuk pagination
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
+  const userRole = Cookies.get("userRole"); // <-- Ambil peran pengguna dari cookie
+
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -79,7 +83,7 @@ const Receipt = () => {
         });
         const data = await res.json();
         if (res.ok) {
-            setUpdateStatus({ type: "success", message: "Pembayaran berhasil diverifikasi!" });
+            setUpdateStatus({ type: "success", message: "Pembayaran berhasil diverifikasi! Status berubah menjadi 'diproses'." });
             await fetchOrders();
             await fetchOrderDetail(orderId);
         } else {
@@ -98,14 +102,14 @@ const Receipt = () => {
     try {
       const res = await fetch(`http://localhost:3001/api/orders/${orderId}/status`, {
         method: "PUT",
-        body: JSON.stringify({ shippingStatus: newStatus }),
+        body: JSON.stringify({ newOrderStatus: newStatus }),
         headers: {
             "Content-Type": "application/json"
         }
       });
       const data = await res.json();
       if (res.ok) {
-        setUpdateStatus({ type: "success", message: "Status berhasil diperbarui!" });
+        setUpdateStatus({ type: "success", message: `Status berhasil diperbarui menjadi '${newStatus}'!` });
         await fetchOrders();
         await fetchOrderDetail(orderId);
       } else {
@@ -117,6 +121,38 @@ const Receipt = () => {
       setModalLoading(false);
     }
   };
+  
+  const handleConfirmCancel = async () => {
+    setShowCancelModal(false);
+    if (!selectedOrder) return;
+    
+    setModalLoading(true);
+    setUpdateStatus(null);
+    try {
+        const res = await fetch(`http://localhost:3001/api/orders/${selectedOrder.id}/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ newOrderStatus: 'dibatalkan' }), 
+        });
+        const data = await res.json();
+        if (res.ok) {
+            setUpdateStatus({ type: "success", message: "Pesanan berhasil dibatalkan." });
+            await fetchOrders();
+            await fetchOrderDetail(selectedOrder.id); 
+        } else {
+            setUpdateStatus({ type: "error", message: data.message || "Gagal membatalkan pesanan." });
+        }
+    } catch (err) {
+        setUpdateStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+    } finally {
+        setModalLoading(false);
+    }
+  };
+  
+  const handleCancelClick = () => {
+    setShowDetailModal(false);
+    setShowCancelModal(true);
+  };
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -125,21 +161,15 @@ const Receipt = () => {
         return "bg-softpink/50 text-elegantburgundy";
       case "diproses":
       case "dikirim":
-        return "bg-elegantburgundy/50 text-purewhite";
-      case "selesai":
       case "diterima":
+      case "selesai":
       case "verified":
-        return "bg-elegantburgundy text-purewhite";
+        return "bg-elegantburgundy/50 text-purewhite";
+      case "dibatalkan":
+        return "bg-red-500 text-purewhite";
       default:
         return "bg-lightmauve text-darkgray";
     }
-  };
-
-  const getDisplayStatus = (order) => {
-    if (order.Shipping) {
-      return order.Shipping.shipping_status;
-    }
-    return order.order_status;
   };
   
   const formatDate = (dateString) => {
@@ -149,17 +179,17 @@ const Receipt = () => {
   };
 
   const orderTableColumns = [
-    { key: 'id', label: 'ID Pesanan', sortable: true, render: (order) => `#${order.id}` },
+    { key: 'id', label: 'No.', sortable: true, render: (order) => `#${order.id}` },
     { key: 'User.first_name', label: 'Pembeli', sortable: false, render: (order) => `${order.User.first_name} ${order.User.last_name}` || 'N/A' },
     { key: 'User.email', label: 'Email', sortable: false, render: (order) => order.User?.email || 'N/A' },
     { key: 'total_price', label: 'Total Harga', sortable: true, render: (order) => `Rp ${order.total_price?.toLocaleString("id-ID")}` },
     {
-      key: 'status',
+      key: 'order_status',
       label: 'Status Pesanan',
       sortable: false,
       render: (order) => (
-        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(getDisplayStatus(order))}`}>
-          {getDisplayStatus(order) || "N/A"}
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(order.order_status)}`}>
+          {order.order_status || "N/A"}
         </span>
       ),
     },
@@ -174,7 +204,6 @@ const Receipt = () => {
     </button>
   );
   
-  // Logika Pagination
   const totalPages = Math.ceil(orders.length / itemsPerPage);
   const lastItemIndex = currentPage * itemsPerPage;
   const firstItemIndex = lastItemIndex - itemsPerPage;
@@ -217,7 +246,7 @@ const Receipt = () => {
             columns={orderTableColumns}
             data={currentOrders}
             loading={loading}
-            onSort={() => {}} // Tidak ada sorting di sini
+            onSort={() => {}}
             sortBy={null}
             sortOrder={null}
             renderActions={renderActions}
@@ -239,8 +268,18 @@ const Receipt = () => {
         order={selectedOrder}
         onVerifyPayment={handleVerifyPayment}
         onUpdateStatus={handleUpdateStatus}
+        onCancelOrder={handleCancelClick}
         modalLoading={modalLoading}
         updateStatus={updateStatus}
+        userRole={userRole}
+      />
+      
+      <ModalHapus
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleConfirmCancel}
+        title="Batalkan Pesanan"
+        message={`Apakah Anda yakin ingin membatalkan pesanan #${selectedOrder?.id}? Aksi ini tidak dapat dikembalikan.`}
       />
     </div>
   );

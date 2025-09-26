@@ -6,7 +6,7 @@ const {
   Order,
   OrderItem,
   Product,
-  Shipping,
+  // Shipping, // Dihapus
   Payment,
   User,
   Cart,
@@ -46,7 +46,7 @@ router.get("/", async (req, res) => {
     const orders = await Order.findAll({
       include: [
         { model: User, attributes: ["first_name", "last_name", "email"] },
-        { model: Shipping },
+        // { model: Shipping }, // Dihapus
         { model: Payment },
       ],
       order: [["created_at", "DESC"]],
@@ -71,7 +71,7 @@ router.get("/:orderId", async (req, res) => {
           model: OrderItem,
           include: [{ model: Product, attributes: ["id", "name", "price"] }],
         },
-        { model: Shipping },
+        // { model: Shipping }, // Dihapus
         { model: Payment },
       ],
     });
@@ -110,16 +110,7 @@ router.get("/user/:userId", authenticateUser, async (req, res) => {
             },
           ],
         },
-        {
-          model: Shipping,
-          attributes: [
-            "id",
-            "shipping_address",
-            "shipping_status",
-            "shipped_at",
-            "received_at",
-          ],
-        },
+        // { model: Shipping }, // Dihapus
         {
           model: Payment,
           attributes: ["id", "payment_proof_url", "payment_status"],
@@ -139,46 +130,33 @@ router.get("/user/:userId", authenticateUser, async (req, res) => {
 
 // Rute untuk memperbarui status pesanan (untuk Admin)
 router.put("/:orderId/status", async (req, res) => {
-  const { orderStatus, shippingStatus, paymentStatus } = req.body;
+  const { newOrderStatus, paymentStatus } = req.body; // Hanya terima satu status baru
   const { orderId } = req.params;
   try {
-    const order = await Order.findByPk(orderId, {
-      include: [{ model: User }],
-    });
+    const order = await Order.findByPk(orderId);
     if (!order) {
       return res.status(404).json({ message: "Pesanan tidak ditemukan." });
     }
     
-    if (orderStatus) {
-       await order.update({ order_status: orderStatus });
+    // Logika Pembaruan Status Utama
+    if (newOrderStatus) {
+        const updateFields = { order_status: newOrderStatus };
+
+        if (newOrderStatus === 'dikirim') {
+            updateFields.shipped_at = new Date();
+        } else if (newOrderStatus === 'diterima') {
+            updateFields.received_at = new Date();
+        }
+        await order.update(updateFields);
     }
     
-    if (shippingStatus) {
-        let shipping = await Shipping.findOne({ where: { order_id: orderId } });
-        const updateData = { shipping_status: shippingStatus };
-
-        if (shippingStatus === 'dikirim') {
-            updateData.shipped_at = new Date();
-        } else if (shippingStatus === 'diterima') {
-            updateData.received_at = new Date();
-        }
-
-        if (shipping) {
-          await shipping.update(updateData);
-        } else {
-          shipping = await Shipping.create({
-            order_id: orderId,
-            shipping_address: order.User.address,
-            ...updateData,
-          });
-        }
-    }
-    
+    // Logika Verifikasi Pembayaran (juga update status utama)
     if (paymentStatus === 'verified') {
         const payment = await Payment.findOne({ where: { order_id: orderId } });
         if (payment) {
             await payment.update({ payment_status: 'verified' });
         }
+        // Jika diverifikasi, pindahkan ke status diproses
         await order.update({ order_status: 'diproses' });
     }
 
@@ -220,9 +198,7 @@ router.post(
       const fileName = `${Date.now()}-${paymentProof.originalFilename || paymentProof.name}`;
       const newPath = path.join(uploadDir, fileName);
 
-      // Salin file yang diunggah ke folder tujuan
       await fs.copyFile(paymentProof.filepath || paymentProof.path, newPath);
-      // Hapus file sementara
       await deleteFile(paymentProof.filepath || paymentProof.path);
 
       const paymentProofUrl = `/uploads/payments/${fileName}`;
@@ -230,7 +206,6 @@ router.post(
       let payment = await Payment.findOne({ where: { order_id: orderId } });
 
       if (payment) {
-        // Hapus file lama jika ada
         if (payment.payment_proof_url) {
           const oldPath = path.join(__dirname, "../../client", payment.payment_proof_url);
           await deleteFile(oldPath);
@@ -295,22 +270,24 @@ router.post("/checkout", authenticateUser, async (req, res) => {
     const order = await Order.create({
       user_id: userId,
       order_status: "pending",
-      total_price: total_price
+      total_price: total_price,
+      shipping_address: user.address, // Tambahkan alamat pengiriman langsung ke tabel order
     }, { transaction });
     
-    // Buat entri shipping secara otomatis
-    await Shipping.create({
+    // Hapus pembuatan Shipping yang terpisah
+    /* await Shipping.create({
         order_id: order.id,
         shipping_address: user.address,
         shipping_status: 'pending',
     }, { transaction });
+    */
 
     const orderItems = cart.CartItems.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.Product.price,
-      size: item.size, // <-- Memindahkan ukuran dari keranjang ke pesanan
+      size: item.size,
     }));
 
     await OrderItem.bulkCreate(orderItems, { transaction });

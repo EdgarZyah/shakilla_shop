@@ -102,7 +102,6 @@ const Orders = () => {
         setUploadStatus({ type: 'success', message: 'Bukti pembayaran berhasil diunggah. Menunggu verifikasi admin.' });
         setPaymentProofFile(null);
         
-        // Tambahkan delay 2 detik sebelum refresh
         setTimeout(async () => {
           await fetchOrders();
           setShowUploadModal(false);
@@ -110,7 +109,6 @@ const Orders = () => {
         }, 2000);
 
       } else {
-        // Handle non-OK responses gracefully
         const data = await res.json();
         setUploadStatus({ type: 'error', message: data.message || 'Gagal mengunggah bukti pembayaran.' });
       }
@@ -127,20 +125,16 @@ const Orders = () => {
         return "bg-softpink/50 text-elegantburgundy";
       case "diproses":
       case "dikirim":
+      case "diterima":
+      case "verified":
         return "bg-elegantburgundy/50 text-purewhite";
       case "selesai":
-      case "diterima":
         return "bg-elegantburgundy text-purewhite";
+      case "dibatalkan": 
+        return "bg-red-500 text-purewhite";
       default:
         return "bg-lightmauve text-darkgray";
     }
-  };
-
-  const getDisplayStatus = (order) => {
-    if (order.Shipping) {
-      return order.Shipping.shipping_status;
-    }
-    return order.order_status;
   };
   
   const formatDate = (dateString) => {
@@ -164,16 +158,17 @@ const Orders = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Kolom tabel diubah menjadi satu status saja
   const orderTableColumns = [
     { key: 'id', label: 'ID Pesanan', render: (order) => `#${order.id}` },
     { key: 'created_at', label: 'Tanggal', render: (order) => formatDate(order.created_at) },
     { key: 'total_price', label: 'Total Harga', render: (order) => `Rp ${order.total_price?.toLocaleString("id-ID")}` },
     {
-      key: 'status',
+      key: 'order_status', 
       label: 'Status Pesanan',
       render: (order) => (
-        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(getDisplayStatus(order))}`}>
-          {getDisplayStatus(order) || "N/A"}
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(order.order_status)}`}>
+          {order.order_status || "N/A"}
         </span>
       ),
     },

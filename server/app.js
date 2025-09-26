@@ -20,7 +20,6 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const productRoutes = require("./routes/productRoutes");
 const shippingRoutes = require("./routes/shippingRoutes");
 const userRoutes = require("./routes/userRoutes");
-const heroContentRoutes = require("./routes/heroContentRoutes");
 
 const app = express();
 
@@ -59,7 +58,6 @@ app.use("/api", paymentRoutes);
 app.use("/api", productRoutes);
 app.use("/api", shippingRoutes);
 app.use("/api", userRoutes);
-app.use("/api", heroContentRoutes);
 
 app.get("/", (_req, res) => {
   res.send("Server berjalan!");
