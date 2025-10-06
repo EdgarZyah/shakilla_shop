@@ -3,6 +3,7 @@ import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const EditProfile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -26,19 +27,16 @@ const EditProfile = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/users/${userId}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setFormData(data);
-        setError(null);
-      } else {
-        setError(data.message || "Gagal mengambil data profil.");
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const response = await axiosClient.get(`/users/${userId}`);
+      const data = response.data;
+
+      setFormData(data);
+      setError(null);
     } catch (err) {
-      setError("Terjadi kesalahan jaringan.");
-      console.error("Error fetching user data:", err);
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal mengambil data profil.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -55,23 +53,17 @@ const EditProfile = () => {
     setStatus(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/users/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setStatus({ type: "success", message: "Profil berhasil diperbarui!" });
-        setTimeout(() => {
-            navigate("/user/profile");
-        }, 1500);
-      } else {
-        setStatus({ type: "error", message: data.message || "Gagal memperbarui profil." });
-      }
+      // REFACTOR: Menggunakan axiosClient.put. Axios otomatis handle body JSON dan headers.
+      await axiosClient.put(`/users/${userId}`, formData);
+      
+      setStatus({ type: "success", message: "Profil berhasil diperbarui!" });
+      setTimeout(() => {
+          navigate("/user/profile");
+      }, 1500);
     } catch (err) {
-      setStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal memperbarui profil.";
+      setStatus({ type: "error", message: message });
       console.error("Error updating user data:", err);
     } finally {
       setLoading(false);

@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import Table from "../../../components/table";
 import ModalHapus from "../../../components/modalHapus";
 import Pagination from "../../../components/pagination";
+import axiosClient from "../../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const ListProduct = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -31,8 +32,10 @@ const ListProduct = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3001/api/products");
-      const data = await response.json();
+      // REFACTOR: Menggunakan axiosClient.get
+      const response = await axiosClient.get("/products");
+      const data = response.data;
+      
       if (Array.isArray(data)) {
         const parsedProducts = data.map(product => {
           let imageUrls = [];
@@ -73,20 +76,15 @@ const ListProduct = () => {
     setStatus(null);
 
     try {
-      const res = await fetch(`http://localhost:3001/api/products/${productToDelete.id}`, {
-        method: "DELETE",
-      });
+      // REFACTOR: Menggunakan axiosClient.delete
+      await axiosClient.delete(`/products/${productToDelete.id}`);
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setStatus({ type: "success", message: "Produk berhasil dihapus!" });
-        fetchProducts(); // Refresh daftar produk
-      } else {
-        setStatus({ type: "error", message: data.message || "Gagal menghapus produk." });
-      }
+      setStatus({ type: "success", message: "Produk berhasil dihapus!" });
+      fetchProducts(); // Refresh daftar produk
     } catch (err) {
-      setStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal menghapus produk.";
+      setStatus({ type: "error", message: message });
     } finally {
       setLoading(false);
       setProductToDelete(null); // Reset item yang akan dihapus

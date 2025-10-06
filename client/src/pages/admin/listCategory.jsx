@@ -4,6 +4,7 @@ import { adminMenu } from "../../layouts/layoutAdmin/adminMenu";
 import ModalHapus from "../../components/modalHapus";
 import Table from "../../components/table";
 import Pagination from "../../components/pagination";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const ListCategory = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -24,15 +25,15 @@ const ListCategory = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3001/api/categories");
-      const data = await res.json();
-      if (res.ok) {
-        setCategories(data);
-      } else {
-        setStatus({ type: "error", message: data.message || "Gagal mengambil kategori." });
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const res = await axiosClient.get("/categories");
+      const data = res.data;
+      
+      setCategories(data);
     } catch (err) {
-      setStatus({ type: "error", message: "Terjadi kesalahan jaringan saat mengambil kategori." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal mengambil kategori.";
+      setStatus({ type: "error", message: message });
     } finally {
       setLoading(false);
     }
@@ -51,20 +52,15 @@ const ListCategory = () => {
     setStatus(null);
 
     try {
-      const res = await fetch(`http://localhost:3001/api/categories/${categoryToDelete.id}`, {
-        method: "DELETE",
-      });
+      // REFACTOR: Menggunakan axiosClient.delete
+      await axiosClient.delete(`/categories/${categoryToDelete.id}`);
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setStatus({ type: "success", message: "Kategori berhasil dihapus!" });
-        fetchCategories();
-      } else {
-        setStatus({ type: "error", message: data.message || "Gagal menghapus kategori." });
-      }
+      setStatus({ type: "success", message: "Kategori berhasil dihapus!" });
+      fetchCategories();
     } catch (err) {
-      setStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal menghapus kategori.";
+      setStatus({ type: "error", message: message });
     } finally {
       setLoading(false);
       setCategoryToDelete(null);

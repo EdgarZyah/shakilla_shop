@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import bgPink from "../../assets/bg-pink1.png";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const Signup = () => {
   const [form, setForm] = useState({
@@ -39,21 +40,15 @@ const Signup = () => {
     setError('');
     setSuccess('');
     try {
-      const res = await fetch('http://localhost:3001/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(form)
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data?.message || 'Signup gagal');
-      } else {
-        setSuccess('Signup berhasil!');
-        // TODO: redirect ke login/dashboard jika perlu
-      }
+      // REFACTOR: Menggunakan axiosClient.post. Axios otomatis handle body dan credentials.
+      await axiosClient.post('/auth/signup', form);
+      
+      setSuccess('Signup berhasil!');
+      // TODO: redirect ke login/dashboard jika perlu
     } catch (err) {
-      setError('Terjadi kesalahan jaringan');
+      // REFACTOR: Menangani error dari Axios (non-2xx status code)
+      const message = err.response?.data?.message || 'Terjadi kesalahan jaringan';
+      setError(message);
     } finally {
       setLoading(false);
     }

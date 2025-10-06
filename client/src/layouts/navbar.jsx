@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import CartDropdown from "../components/CartDropdown";
 import logo from "../assets/logo-transparent.png";
+import axiosClient from "../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const Navbar = ({ key }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,11 +26,11 @@ const Navbar = ({ key }) => {
       return;
     }
     try {
-      const response = await fetch(`http://localhost:3001/api/carts/user/${userId}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (response.ok && data?.CartItems) {
+      // REFACTOR: Menggunakan axiosClient.get
+      const response = await axiosClient.get(`/carts/user/${userId}`);
+      const data = response.data;
+      
+      if (data?.CartItems) {
         setCartItems(data.CartItems);
       } else {
         setCartItems([]);
@@ -75,15 +76,10 @@ const Navbar = ({ key }) => {
 
   const removeItem = async (itemId) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/carts/item/${itemId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      if (response.ok) {
-        setCartItems(prev => prev.filter(item => item.id !== itemId));
-      } else {
-        console.error("Failed to remove item from cart.");
-      }
+      // REFACTOR: Menggunakan axiosClient.delete. Axios otomatis handle method DELETE dan credentials.
+      await axiosClient.delete(`/carts/item/${itemId}`);
+
+      setCartItems(prev => prev.filter(item => item.id !== itemId));
     } catch (err) {
       console.error("Error removing item:", err);
     }

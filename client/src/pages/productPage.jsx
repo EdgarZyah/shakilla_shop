@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import Navbar from "../layouts/navbar";
 import Footer from "../layouts/footer";
 import Cookies from "js-cookie";
+import axiosClient from "../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const ProductPage = () => {
   const { id } = useParams();
@@ -21,12 +22,9 @@ const ProductPage = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/products/${id}`);
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || "Gagal mengambil data produk.");
-        }
+        // REFACTOR: Menggunakan axiosClient.get
+        const res = await axiosClient.get(`/products/${id}`);
+        const data = res.data;
 
         let imageUrls = [];
         if (data.image_url && typeof data.image_url === "string") {
@@ -46,7 +44,9 @@ const ProductPage = () => {
         setProduct({ ...data, images: allImages });
         setLoading(false);
       } catch (err) {
-        setError(err.message);
+        // REFACTOR: Error handling untuk Axios
+        const message = err.response?.data?.message || "Gagal mengambil data produk.";
+        setError(message);
         setLoading(false);
       }
     };
@@ -67,40 +67,31 @@ const ProductPage = () => {
     setCartStatus({ type: "loading", message: "Menambahkan ke keranjang..." });
 
     try {
-      const res = await fetch("http://localhost:3001/api/carts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          product_id: product.id,
-          quantity: quantity,
-          size: selectedSize, // <-- Menambahkan ukuran yang dipilih
-        }),
+      // REFACTOR: Menggunakan axiosClient.post. Axios otomatis handle body JSON.
+      const res = await axiosClient.post("/carts", {
+        product_id: product.id,
+        quantity: quantity,
+        size: selectedSize, 
       });
 
-      const data = await res.json();
+      const data = res.data;
 
-      if (res.ok) {
-        setCartStatus({
-          type: "success",
-          message: data?.message || "Produk berhasil ditambahkan ke keranjang!",
-        });
-        
-        // Memperbarui state `cartKey` setelah jeda 2 detik
-        setTimeout(() => {
-          setCartKey(prev => prev + 1);
-          setCartStatus(null);
-        }, 2000);
-      } else {
-        setCartStatus({
-          type: "error",
-          message: data.message || "Gagal menambahkan produk ke keranjang.",
-        });
-      }
+      setCartStatus({
+        type: "success",
+        message: data?.message || "Produk berhasil ditambahkan ke keranjang!",
+      });
+      
+      // Memperbarui state `cartKey` setelah jeda 2 detik
+      setTimeout(() => {
+        setCartKey(prev => prev + 1);
+        setCartStatus(null);
+      }, 2000);
     } catch (err) {
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Terjadi kesalahan jaringan.";
       setCartStatus({
         type: "error",
-        message: "Terjadi kesalahan jaringan.",
+        message: message,
       });
       console.error("Error adding to cart:", err);
     }

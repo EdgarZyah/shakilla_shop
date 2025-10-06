@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Sidebar from "../../layouts/sidebar";
 import { adminMenu } from "../../layouts/layoutAdmin/adminMenu";
 import { FaUsers, FaBox, FaClipboardList } from 'react-icons/fa';
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -19,17 +20,17 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      // REFACTOR: Menggunakan axiosClient untuk semua panggilan API
       const [usersRes, productsRes, ordersRes] = await Promise.all([
-        fetch("http://localhost:3001/api/users"),
-        fetch("http://localhost:3001/api/products"),
-        fetch("http://localhost:3001/api/orders"),
+        axiosClient.get("/users"),
+        axiosClient.get("/products"),
+        axiosClient.get("/orders"),
       ]);
 
-      const [usersData, productsData, ordersData] = await Promise.all([
-        usersRes.json(),
-        productsRes.json(),
-        ordersRes.json(),
-      ]);
+      // Data sudah otomatis diurai oleh Axios di properti `.data`
+      const usersData = usersRes.data;
+      const productsData = productsRes.data;
+      const ordersData = ordersRes.data;
 
       setDashboardData({
         usersCount: Array.isArray(usersData) ? usersData.length : 0,

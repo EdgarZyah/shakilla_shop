@@ -7,6 +7,7 @@ import Cookies from 'js-cookie';
 import { useNavigate } from 'react-router-dom';
 import WhatsappRedirect from '../components/WhatsappRedirect';
 import { Link } from 'react-router-dom';
+import axiosClient from '../api/axiosClient'; // <-- REFACTOR: Import axiosClient
 
 const Cart = () => {
   const [cart, setCart] = useState(null);
@@ -27,13 +28,9 @@ const Cart = () => {
   const fetchUserData = async () => {
     if (!userId) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/users/${userId}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setUserData(data);
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const response = await axiosClient.get(`/users/${userId}`);
+      setUserData(response.data);
     } catch (err) {
       console.error("Error fetching user data:", err);
     }
@@ -47,19 +44,15 @@ const Cart = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/carts/user/${userId}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setCart(data);
-        setError(null);
-      } else {
-        setCart(null);
-        setError(data.message || "Gagal mengambil data keranjang.");
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const response = await axiosClient.get(`/carts/user/${userId}`);
+      const data = response.data;
+      
+      setCart(data);
+      setError(null);
     } catch (err) {
-      setError("Terjadi kesalahan jaringan.");
+      const message = err.response?.data?.message || "Gagal mengambil data keranjang.";
+      setError(message);
       console.error("Error fetching cart:", err);
       setCart(null);
     } finally {
@@ -70,19 +63,14 @@ const Cart = () => {
   const handleDeleteItem = async (itemId) => {
     setStatus({ type: 'loading', message: 'Menghapus item...' });
     try {
-      const response = await fetch(`http://localhost:3001/api/carts/item/${itemId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      if (response.ok) {
-        setStatus({ type: 'success', message: 'Item berhasil dihapus dari keranjang.' });
-        fetchCartData();
-      } else {
-        const data = await response.json();
-        setStatus({ type: 'error', message: data.message || 'Gagal menghapus item.' });
-      }
+      // REFACTOR: Menggunakan axiosClient.delete
+      await axiosClient.delete(`/carts/item/${itemId}`);
+      
+      setStatus({ type: 'success', message: 'Item berhasil dihapus dari keranjang.' });
+      fetchCartData();
     } catch (err) {
-      setStatus({ type: 'error', message: 'Terjadi kesalahan jaringan.' });
+      const message = err.response?.data?.message || 'Gagal menghapus item.';
+      setStatus({ type: 'error', message: message });
       console.error('Error deleting item:', err);
     }
   };
@@ -90,23 +78,15 @@ const Cart = () => {
   const handleUpdateQuantity = async (itemId, newQuantity) => {
     setStatus({ type: 'loading', message: 'Memperbarui kuantitas...' });
     try {
-        const response = await fetch(`http://localhost:3001/api/carts/item/${itemId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ quantity: newQuantity }),
-        });
+        // REFACTOR: Menggunakan axiosClient.put. Axios otomatis handle body JSON.
+        const response = await axiosClient.put(`/carts/item/${itemId}`, { quantity: newQuantity });
+        const data = response.data;
         
-        if (response.ok) {
-            const data = await response.json();
-            setStatus({ type: 'success', message: data.message || 'Kuantitas berhasil diperbarui.' });
-            fetchCartData();
-        } else {
-            const data = await response.json();
-            setStatus({ type: 'error', message: data.message || 'Gagal memperbarui kuantitas.' });
-        }
+        setStatus({ type: 'success', message: data.message || 'Kuantitas berhasil diperbarui.' });
+        fetchCartData();
     } catch (err) {
-        setStatus({ type: 'error', message: 'Terjadi kesalahan jaringan.' });
+        const message = err.response?.data?.message || 'Gagal memperbarui kuantitas.';
+        setStatus({ type: 'error', message: message });
         console.error('Error updating quantity:', err);
     }
   };
@@ -114,28 +94,22 @@ const Cart = () => {
   const handleCheckout = async () => {
       setStatus({ type: 'loading', message: 'Memproses pesanan...' });
       try {
-          const response = await fetch('http://localhost:3001/api/orders/checkout', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-          });
+          // REFACTOR: Menggunakan axiosClient.post
+          const response = await axiosClient.post('/orders/checkout', {});
 
-          const data = await response.json();
-          if (response.ok) {
-              setStatus({ type: 'success', message: 'Checkout berhasil! Siapkan pesan WhatsApp...' });
-              
-              const newOrderData = {
-                  order_id: data.order_id,
-                  total_price: calculateSubtotal(),
-                  created_at: new Date().toISOString(),
-              };
-              setCheckoutData(newOrderData);
+          const data = response.data;
+          setStatus({ type: 'success', message: 'Checkout berhasil! Siapkan pesan WhatsApp...' });
+          
+          const newOrderData = {
+              order_id: data.order_id,
+              total_price: calculateSubtotal(),
+              created_at: new Date().toISOString(),
+          };
+          setCheckoutData(newOrderData);
 
-          } else {
-              setStatus({ type: 'error', message: data.message || 'Gagal melakukan checkout.' });
-          }
       } catch (err) {
-          setStatus({ type: 'error', message: 'Terjadi kesalahan jaringan.' });
+          const message = err.response?.data?.message || 'Terjadi kesalahan jaringan.';
+          setStatus({ type: 'error', message: message });
           console.error('Error during checkout:', err);
       }
   };

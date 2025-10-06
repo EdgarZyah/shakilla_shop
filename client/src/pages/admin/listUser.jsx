@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import Table from "../../components/table";
 import ModalHapus from "../../components/modalHapus";
 import Pagination from "../../components/pagination";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const ListUser = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -34,8 +35,10 @@ const ListUser = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3001/api/users");
-      const data = await response.json();
+      // REFACTOR: Menggunakan axiosClient.get
+      const response = await axiosClient.get("/users");
+      const data = response.data;
+      
       if (Array.isArray(data)) {
         setUsers(data);
       } else {
@@ -62,19 +65,16 @@ const ListUser = () => {
     setLoading(true);
     setDeleteStatus(null);
     try {
-      const res = await fetch(`http://localhost:3001/api/users/${userToDelete.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setUsers(users.filter(user => user.id !== userToDelete.id));
-        setDeleteStatus({ type: "success", message: "Pengguna berhasil dihapus." });
-      } else {
-        const data = await res.json();
-        setDeleteStatus({ type: "error", message: data.message || "Gagal menghapus pengguna." });
-      }
+      // REFACTOR: Menggunakan axiosClient.delete
+      await axiosClient.delete(`/users/${userToDelete.id}`);
+
+      setUsers(users.filter(user => user.id !== userToDelete.id));
+      setDeleteStatus({ type: "success", message: "Pengguna berhasil dihapus." });
     } catch (err) {
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal menghapus pengguna.";
       console.error("Error deleting user:", err);
-      setDeleteStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+      setDeleteStatus({ type: "error", message: message });
     } finally {
       setLoading(false);
       setUserToDelete(null);
@@ -99,26 +99,14 @@ const ListUser = () => {
       let passwordUpdated = false;
 
       if (newRole && newRole !== editingUser.role) {
-        const roleRes = await fetch(`http://localhost:3001/api/users/${editingUser.id}/role`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ role: newRole }),
-        });
-        const roleData = await roleRes.json();
-        if (!roleRes.ok) throw new Error(roleData.message || "Gagal memperbarui role.");
+        // REFACTOR: Menggunakan axiosClient.put
+        await axiosClient.put(`/users/${editingUser.id}/role`, { role: newRole });
         roleUpdated = true;
       }
 
       if (newPassword && newPassword.length >= 8) {
-        const passwordRes = await fetch(`http://localhost:3001/api/users/${editingUser.id}/password`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ newPassword }),
-        });
-        const passwordData = await passwordRes.json();
-        if (!passwordRes.ok) throw new Error(passwordData.message || "Gagal memperbarui password.");
+        // REFACTOR: Menggunakan axiosClient.put
+        await axiosClient.put(`/users/${editingUser.id}/password`, { newPassword });
         passwordUpdated = true;
       }
       
@@ -135,7 +123,9 @@ const ListUser = () => {
       }
 
     } catch (err) {
-      setEditStatus({ type: "error", message: err.message || "Gagal memperbarui data pengguna." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal memperbarui data pengguna.";
+      setEditStatus({ type: "error", message: message });
     }
   };
 

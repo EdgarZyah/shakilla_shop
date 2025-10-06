@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from 'js-cookie';
 import bgPink from "../../assets/bg-pink1.png";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -29,27 +30,22 @@ const Login = () => {
     e.preventDefault();
     setLoading(true); setError(""); setSuccess("");
     try {
-      const res = await fetch("http://localhost:3001/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data?.message || "Login gagal");
+      // REFACTOR: Menggunakan axiosClient.post. Axios otomatis handle JSON.stringify dan headers.
+      const res = await axiosClient.post("/auth/login", form);
+      const data = res.data; 
+      
+      setSuccess("Login berhasil");
+      if (data.user.role === 'admin') {
+        navigate("/admin/dashboard");
+      } else if (data.user.role === 'user') {
+        navigate("/user/dashboard");
       } else {
-        setSuccess("Login berhasil");
-        if (data.user.role === 'admin') {
-          navigate("/admin/dashboard");
-        } else if (data.user.role === 'user') {
-          navigate("/user/dashboard");
-        } else {
-          navigate("/");
-        }
+        navigate("/");
       }
     } catch (err) {
-      setError("Terjadi kesalahan jaringan");
+      // REFACTOR: Menangani error dari Axios (non-2xx status code)
+      const message = err.response?.data?.message || "Terjadi kesalahan jaringan";
+      setError(message);
     } finally {
       setLoading(false);
     }

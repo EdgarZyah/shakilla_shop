@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu";
 import Cookies from "js-cookie";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const DashboardUser = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -19,29 +20,27 @@ const DashboardUser = () => {
         return;
       }
       try {
+        // REFACTOR: Menggunakan axiosClient untuk kedua panggilan
         const [userRes, ordersRes] = await Promise.all([
-          fetch(`http://localhost:3001/api/users/${userId}`, { credentials: 'include' }),
-          fetch(`http://localhost:3001/api/orders/user/${userId}`, { credentials: 'include' }),
+          axiosClient.get(`/users/${userId}`),
+          axiosClient.get(`/orders/user/${userId}`),
         ]);
 
-        const [userData, ordersData] = await Promise.all([
-          userRes.json(),
-          ordersRes.json(),
-        ]);
+        const userData = userRes.data;
+        const ordersData = ordersRes.data;
 
-        if (userRes.ok) {
-          setUserData(userData);
-        } else {
-          setError(userData.message || "Gagal mengambil data profil.");
-        }
+        setUserData(userData); // Tidak perlu cek res.ok karena Axios melempar error untuk non-2xx
 
-        if (ordersRes.ok) {
+        if (Array.isArray(ordersData)) {
           setOrders(ordersData);
         } else {
           setOrders([]);
         }
+
       } catch (err) {
-        setError("Terjadi kesalahan jaringan.");
+        // REFACTOR: Error handling untuk Axios
+        const message = err.response?.data?.message || "Terjadi kesalahan jaringan.";
+        setError(message);
         console.error("Error fetching data:", err);
       } finally {
         setLoading(false);

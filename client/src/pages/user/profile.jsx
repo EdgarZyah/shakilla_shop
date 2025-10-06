@@ -3,6 +3,7 @@ import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu"; 
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const Profile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -25,18 +26,16 @@ const Profile = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/users/${userId}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setUserData(data);
-        setError(null);
-      } else {
-        setError(data.message || "Gagal mengambil data profil.");
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const response = await axiosClient.get(`/users/${userId}`);
+      const data = response.data;
+      
+      setUserData(data);
+      setError(null);
     } catch (err) {
-      setError("Terjadi kesalahan jaringan.");
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal mengambil data profil.";
+      setError(message);
       console.error("Error fetching user data:", err);
     } finally {
       setLoading(false);

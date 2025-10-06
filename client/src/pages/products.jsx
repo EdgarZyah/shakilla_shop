@@ -4,6 +4,7 @@ import Footer from "../layouts/footer.jsx";
 import Hero from "../components/hero.jsx";
 import Card from "../components/card";
 import Pagination from "../components/pagination";
+import axiosClient from "../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const heroTitle = "Discover the Latest Fashion Trends";
 const heroSubtitle = "[ Explore our curated collection of style & elegance ]";
@@ -17,9 +18,18 @@ const Products = () => {
 
   // Ambil produk dari backend
   useEffect(() => {
-    fetch("http://localhost:3001/api/products")
-      .then((res) => res.json())
-      .then((data) => setProducts(data));
+    const fetchProducts = async () => {
+        try {
+            // REFACTOR: Menggunakan axiosClient.get
+            const res = await axiosClient.get("/products");
+            setProducts(res.data);
+        } catch (err) {
+            console.error("Error fetching products:", err);
+            // Tetapkan produk kosong jika terjadi kesalahan
+            setProducts([]);
+        }
+    };
+    fetchProducts();
   }, []);
 
   // Ambil daftar kategori unik dari produk

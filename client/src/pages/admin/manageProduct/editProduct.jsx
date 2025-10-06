@@ -4,6 +4,7 @@ import Sidebar from "../../../layouts/sidebar";
 import { adminMenu } from "../../../layouts/layoutAdmin/adminMenu";
 import { useParams, useNavigate } from "react-router-dom";
 import WarningModal from "../../../components/warningModal"; // Import komponen modal
+import axiosClient from "../../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const EditProduct = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -36,12 +37,9 @@ const EditProduct = () => {
 
   const fetchProduct = async () => {
     try {
-      const res = await fetch(`http://localhost:3001/api/products/${id}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Gagal mengambil data produk.");
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const res = await axiosClient.get(`/products/${id}`);
+      const data = res.data;
 
       let imageUrls = [];
       if (data.image_url && typeof data.image_url === "string") {
@@ -67,20 +65,19 @@ const EditProduct = () => {
       });
       setLoading(false);
     } catch (err) {
-      setStatus({ type: "error", message: "Terjadi kesalahan jaringan saat mengambil produk." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Terjadi kesalahan jaringan saat mengambil produk.";
+      setStatus({ type: "error", message: message });
       setLoading(false);
     }
   };
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/categories");
-      const data = await res.json();
-      if (res.ok) {
-        setCategories(data);
-      } else {
-        console.error("Gagal mengambil kategori:", data.message);
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const res = await axiosClient.get("/categories");
+      const data = res.data;
+      setCategories(data);
     } catch (err) {
       console.error("Kesalahan jaringan saat mengambil kategori:", err);
     }
@@ -168,23 +165,21 @@ const EditProduct = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:3001/api/products/${id}`, {
-        method: "PUT",
-        body: formData,
+      // REFACTOR: Menggunakan axiosClient.put untuk FormData
+      await axiosClient.put(`/products/${id}`, formData, {
+        headers: {
+            'Content-Type': undefined // Biarkan Axios/browser menentukan multipart/form-data
+        }
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setStatus({ type: "success", message: "Produk berhasil diperbarui!" });
-        setTimeout(() => {
-          navigate("/admin/list-produk");
-        }, 2000);
-      } else {
-        setStatus({ type: "error", message: data.message || "Gagal memperbarui produk." });
-      }
+      setStatus({ type: "success", message: "Produk berhasil diperbarui!" });
+      setTimeout(() => {
+        navigate("/admin/list-produk");
+      }, 2000);
     } catch (err) {
-      setStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal memperbarui produk.";
+      setStatus({ type: "error", message: message });
     } finally {
       setLoading(false);
     }

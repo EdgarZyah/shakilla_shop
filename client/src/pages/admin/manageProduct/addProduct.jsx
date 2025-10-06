@@ -4,6 +4,7 @@ import Sidebar from "../../../layouts/sidebar";
 import { adminMenu } from "../../../layouts/layoutAdmin/adminMenu";
 import { useNavigate } from "react-router-dom";
 import WarningModal from "../../../components/warningModal"; // Import komponen modal
+import axiosClient from "../../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const AddProduct = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -34,13 +35,11 @@ const AddProduct = () => {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/categories");
-      const data = await res.json();
-      if (res.ok) {
-        setCategories(data);
-      } else {
-        console.error("Gagal mengambil kategori:", data.message);
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const res = await axiosClient.get("/categories");
+      const data = res.data;
+      
+      setCategories(data);
     } catch (err) {
       console.error("Kesalahan jaringan saat mengambil kategori:", err);
     }
@@ -98,23 +97,17 @@ const AddProduct = () => {
     if (!newCategoryName) return;
 
     try {
-      const res = await fetch("http://localhost:3001/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCategoryName }),
-      });
-      const data = await res.json();
+      // REFACTOR: Menggunakan axiosClient.post
+      await axiosClient.post("/categories", { name: newCategoryName });
 
-      if (res.ok) {
-        alert("Kategori berhasil dibuat!");
-        fetchCategories(); // Muat ulang daftar kategori
-        setShowCategoryModal(false);
-        setNewCategoryName("");
-      } else {
-        alert(data.message || "Gagal membuat kategori.");
-      }
+      alert("Kategori berhasil dibuat!");
+      fetchCategories(); // Muat ulang daftar kategori
+      setShowCategoryModal(false);
+      setNewCategoryName("");
     } catch (err) {
-      alert("Terjadi kesalahan jaringan saat membuat kategori.");
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal membuat kategori.";
+      alert(message);
     }
   };
 
@@ -137,24 +130,22 @@ const AddProduct = () => {
     });
 
     try {
-      const res = await fetch("http://localhost:3001/api/products", {
-        method: "POST",
-        body: formData,
+      // REFACTOR: Menggunakan axiosClient.post untuk FormData
+      await axiosClient.post("/products", formData, {
+          headers: {
+              'Content-Type': undefined // Biarkan Axios/browser menentukan multipart/form-data
+          }
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setStatus({ type: "success", message: "Produk berhasil ditambahkan!" });
-        setForm({ name: "", price: "", description: "", stock: "", thumbnail: null, images: [], category_id: "" });
-        setTimeout(() => {
-          navigate("/admin/list-produk");
-        }, 2000);
-      } else {
-        setStatus({ type: "error", message: data.message || "Gagal menambahkan produk." });
-      }
+      setStatus({ type: "success", message: "Produk berhasil ditambahkan!" });
+      setForm({ name: "", price: "", description: "", stock: "", thumbnail: null, images: [], category_id: "" });
+      setTimeout(() => {
+        navigate("/admin/list-produk");
+      }, 2000);
     } catch (err) {
-      setStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal menambahkan produk.";
+      setStatus({ type: "error", message: message });
     } finally {
       setLoading(false);
     }

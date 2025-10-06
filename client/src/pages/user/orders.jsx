@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import OrderDetailModal from "../../components/orderDetailModal";
 import Table from "../../components/table";
 import Pagination from "../../components/pagination";
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const Orders = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -36,18 +37,16 @@ const Orders = () => {
     }
     try {
       setLoading(true);
-      const ordersRes = await fetch(`http://localhost:3001/api/orders/user/${userId}`, { credentials: 'include' });
-      const ordersData = await ordersRes.json();
-      if (ordersRes.ok) {
-        setOrders(ordersData);
-        setError(null);
-      } else {
-        setOrders([]);
-        setError(ordersData.message || "Gagal mengambil data pesanan.");
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const ordersRes = await axiosClient.get(`/orders/user/${userId}`);
+      const ordersData = ordersRes.data;
+      
+      setOrders(ordersData);
+      setError(null);
     } catch (err) {
-      setError("Terjadi kesalahan jaringan.");
-      console.error("Error fetching orders:", err);
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal mengambil data pesanan.";
+      setError(message);
       setOrders([]);
     } finally {
       setLoading(false);
@@ -62,16 +61,16 @@ const Orders = () => {
         return;
       }
       try {
-        const userRes = await fetch(`http://localhost:3001/api/users/${userId}`, { credentials: 'include' });
-        const userData = await userRes.json();
-        if (userRes.ok) {
-          setUserData(userData);
-        } else {
-          setError(userData.message || "Gagal mengambil data profil.");
-        }
+        // REFACTOR: Menggunakan axiosClient.get
+        const userRes = await axiosClient.get(`/users/${userId}`);
+        const userData = userRes.data;
+        
+        setUserData(userData);
         await fetchOrders();
       } catch (err) {
-        setError("Terjadi kesalahan jaringan.");
+        // REFACTOR: Error handling untuk Axios
+        const message = err.response?.data?.message || "Gagal mengambil data profil.";
+        setError(message);
         console.error("Error fetching data:", err);
       }
     };
@@ -92,28 +91,26 @@ const Orders = () => {
     formData.append('paymentProof', paymentProofFile);
 
     try {
-      const res = await fetch(`http://localhost:3001/api/orders/${selectedOrder.id}/payment`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
+      // REFACTOR: Menggunakan axiosClient.post untuk FormData. Kita kirim FormData tanpa Content-Type eksplisit.
+      await axiosClient.post(`/orders/${selectedOrder.id}/payment`, formData, {
+          headers: {
+              // Menghapus Content-Type agar Axios/browser otomatis mengatur multipart/form-data
+              'Content-Type': undefined 
+          }
       });
       
-      if (res.ok) {
-        setUploadStatus({ type: 'success', message: 'Bukti pembayaran berhasil diunggah. Menunggu verifikasi admin.' });
-        setPaymentProofFile(null);
-        
-        setTimeout(async () => {
-          await fetchOrders();
-          setShowUploadModal(false);
-          setUploadStatus(null);
-        }, 2000);
+      setUploadStatus({ type: 'success', message: 'Bukti pembayaran berhasil diunggah. Menunggu verifikasi admin.' });
+      setPaymentProofFile(null);
+      
+      setTimeout(async () => {
+        await fetchOrders();
+        setShowUploadModal(false);
+        setUploadStatus(null);
+      }, 2000);
 
-      } else {
-        const data = await res.json();
-        setUploadStatus({ type: 'error', message: data.message || 'Gagal mengunggah bukti pembayaran.' });
-      }
     } catch (err) {
-      setUploadStatus({ type: 'error', message: 'Terjadi kesalahan jaringan.' });
+      const message = err.response?.data?.message || 'Gagal mengunggah bukti pembayaran.';
+      setUploadStatus({ type: 'error', message: message });
       console.error('Error in handleUploadProof:', err);
     }
   };

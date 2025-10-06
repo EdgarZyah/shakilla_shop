@@ -5,7 +5,8 @@ import OrderDetailModal from "../../components/orderDetailModal";
 import Table from "../../components/table";
 import Pagination from "../../components/pagination";
 import ModalHapus from "../../components/modalHapus";
-import Cookies from "js-cookie"; // <-- Tambahkan import ini
+import Cookies from "js-cookie"; 
+import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
 
 const Receipt = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -23,7 +24,7 @@ const Receipt = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
-  const userRole = Cookies.get("userRole"); // <-- Ambil peran pengguna dari cookie
+  const userRole = Cookies.get("userRole"); 
 
   useEffect(() => {
     fetchOrders();
@@ -32,17 +33,16 @@ const Receipt = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3001/api/orders");
-      const data = await res.json();
-      if (res.ok) {
-        setOrders(data);
-        setError(null);
-      } else {
-        setError(data.message || "Gagal mengambil data pesanan.");
-        setOrders([]);
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const res = await axiosClient.get("/orders");
+      const data = res.data;
+
+      setOrders(data);
+      setError(null);
     } catch (err) {
-      setError("Terjadi kesalahan jaringan.");
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal mengambil data pesanan.";
+      setError(message);
       setOrders([]);
       console.error("Error fetching orders:", err);
     } finally {
@@ -54,16 +54,16 @@ const Receipt = () => {
     setModalLoading(true);
     setUpdateStatus(null);
     try {
-      const res = await fetch(`http://localhost:3001/api/orders/${orderId}`);
-      const data = await res.json();
-      if (res.ok) {
-        setSelectedOrder(data);
-        setShowDetailModal(true);
-      } else {
-        alert(data.message || "Gagal mengambil detail pesanan.");
-      }
+      // REFACTOR: Menggunakan axiosClient.get
+      const res = await axiosClient.get(`/orders/${orderId}`);
+      const data = res.data;
+
+      setSelectedOrder(data);
+      setShowDetailModal(true);
     } catch (err) {
-      alert("Terjadi kesalahan jaringan saat mengambil detail.");
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal mengambil detail pesanan.";
+      alert(message);
       console.error("Error fetching order detail:", err);
     } finally {
       setModalLoading(false);
@@ -74,23 +74,16 @@ const Receipt = () => {
     setModalLoading(true);
     setUpdateStatus(null);
     try {
-        const res = await fetch(`http://localhost:3001/api/orders/${orderId}/status`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ paymentStatus: 'verified' })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            setUpdateStatus({ type: "success", message: "Pembayaran berhasil diverifikasi! Status berubah menjadi 'diproses'." });
-            await fetchOrders();
-            await fetchOrderDetail(orderId);
-        } else {
-            setUpdateStatus({ type: "error", message: data.message || "Gagal memverifikasi pembayaran." });
-        }
+        // REFACTOR: Menggunakan axiosClient.put. Axios otomatis handle body JSON.
+        await axiosClient.put(`/orders/${orderId}/status`, { paymentStatus: 'verified' });
+
+        setUpdateStatus({ type: "success", message: "Pembayaran berhasil diverifikasi! Status berubah menjadi 'diproses'." });
+        await fetchOrders();
+        await fetchOrderDetail(orderId);
     } catch (err) {
-        setUpdateStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+        // REFACTOR: Error handling untuk Axios
+        const message = err.response?.data?.message || "Gagal memverifikasi pembayaran.";
+        setUpdateStatus({ type: "error", message: message });
     } finally {
         setModalLoading(false);
     }
@@ -100,23 +93,16 @@ const Receipt = () => {
     setModalLoading(true);
     setUpdateStatus(null);
     try {
-      const res = await fetch(`http://localhost:3001/api/orders/${orderId}/status`, {
-        method: "PUT",
-        body: JSON.stringify({ newOrderStatus: newStatus }),
-        headers: {
-            "Content-Type": "application/json"
-        }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUpdateStatus({ type: "success", message: `Status berhasil diperbarui menjadi '${newStatus}'!` });
-        await fetchOrders();
-        await fetchOrderDetail(orderId);
-      } else {
-        setUpdateStatus({ type: "error", message: data.message || "Gagal memperbarui status." });
-      }
+      // REFACTOR: Menggunakan axiosClient.put
+      await axiosClient.put(`/orders/${orderId}/status`, { newOrderStatus: newStatus });
+
+      setUpdateStatus({ type: "success", message: `Status berhasil diperbarui menjadi '${newStatus}'!` });
+      await fetchOrders();
+      await fetchOrderDetail(orderId);
     } catch (err) {
-      setUpdateStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+      // REFACTOR: Error handling untuk Axios
+      const message = err.response?.data?.message || "Gagal memperbarui status.";
+      setUpdateStatus({ type: "error", message: message });
     } finally {
       setModalLoading(false);
     }
@@ -129,21 +115,16 @@ const Receipt = () => {
     setModalLoading(true);
     setUpdateStatus(null);
     try {
-        const res = await fetch(`http://localhost:3001/api/orders/${selectedOrder.id}/status`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ newOrderStatus: 'dibatalkan' }), 
-        });
-        const data = await res.json();
-        if (res.ok) {
-            setUpdateStatus({ type: "success", message: "Pesanan berhasil dibatalkan." });
-            await fetchOrders();
-            await fetchOrderDetail(selectedOrder.id); 
-        } else {
-            setUpdateStatus({ type: "error", message: data.message || "Gagal membatalkan pesanan." });
-        }
+        // REFACTOR: Menggunakan axiosClient.put
+        await axiosClient.put(`/orders/${selectedOrder.id}/status`, { newOrderStatus: 'dibatalkan' });
+        
+        setUpdateStatus({ type: "success", message: "Pesanan berhasil dibatalkan." });
+        await fetchOrders();
+        await fetchOrderDetail(selectedOrder.id); 
     } catch (err) {
-        setUpdateStatus({ type: "error", message: "Terjadi kesalahan jaringan." });
+        // REFACTOR: Error handling untuk Axios
+        const message = err.response?.data?.message || "Gagal membatalkan pesanan.";
+        setUpdateStatus({ type: "error", message: message });
     } finally {
         setModalLoading(false);
     }
