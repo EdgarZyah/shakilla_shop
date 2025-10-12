@@ -2,12 +2,38 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu";
-import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
 import OrderDetailModal from "../../components/orderDetailModal";
 import Table from "../../components/table";
 import Pagination from "../../components/pagination";
-import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../../api/axiosClient"; 
+
+// FIX: Fungsi untuk memperbaiki parsing tanggal MySQL (YYYY-MM-DD HH:MM:SS)
+// Format tanggal MySQL & ISO agar selalu bisa dibaca
+const formatDate = (dateString) => {
+  if (!dateString) return "N/A";
+
+  try {
+    let parsedDate = new Date(dateString);
+    if (isNaN(parsedDate.getTime())) {
+      parsedDate = new Date(dateString.replace(" ", "T"));
+    }
+
+    if (isNaN(parsedDate.getTime())) return "N/A";
+
+    return parsedDate.toLocaleString("id-ID", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "N/A";
+  }
+};
+
+
 
 const Orders = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -24,61 +50,61 @@ const Orders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
-  const userId = Cookies.get('userId');
+  const accessToken = sessionStorage.getItem('accessToken');
+  const userId = sessionStorage.getItem('userId');
   const navigate = useNavigate();
 
   const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
   const fetchOrders = useCallback(async () => {
-    if (!userId) {
+    if (!accessToken || !userId) {
       setError("User tidak terautentikasi.");
       setLoading(false);
       return;
     }
     try {
       setLoading(true);
-      // REFACTOR: Menggunakan axiosClient.get
-      const ordersRes = await axiosClient.get(`/orders/user/${userId}`);
-      const ordersData = ordersRes.data;
+      const ordersRes = await axiosClient.get(`/orders`, { params: { user_id: userId } });
+      const ordersData = ordersRes.data.orders;
       
       setOrders(ordersData);
       setError(null);
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
       const message = err.response?.data?.message || "Gagal mengambil data pesanan.";
       setError(message);
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [accessToken, userId]);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!userId) {
-        setError("User tidak terautentikasi.");
-        setLoading(false);
+      if (!accessToken) {
+        navigate('/login', { replace: true });
         return;
       }
+      if (!userId) return; 
+      
       try {
-        // REFACTOR: Menggunakan axiosClient.get
-        const userRes = await axiosClient.get(`/users/${userId}`);
-        const userData = userRes.data;
+        const userRes = await axiosClient.get(`/users/profile`);
+        const userData = userRes.data.user;
         
         setUserData(userData);
         await fetchOrders();
       } catch (err) {
-        // REFACTOR: Error handling untuk Axios
         const message = err.response?.data?.message || "Gagal mengambil data profil.";
         setError(message);
         console.error("Error fetching data:", err);
       }
     };
     fetchData();
-  }, [userId, fetchOrders]);
+  }, [accessToken, userId, fetchOrders, navigate]);
 
   const handleUploadProof = async (e) => {
     e.preventDefault();
+    
+    const uploadUrl = `/payments/upload`;
     
     if (!paymentProofFile || !allowedTypes.includes(paymentProofFile.type)) {
       setUploadStatus({ type: 'error', message: 'Hanya file gambar (JPEG, PNG, WEBP, HEIC, HEIF) yang diizinkan.' });
@@ -88,17 +114,12 @@ const Orders = () => {
     setUploadStatus({ type: 'loading', message: 'Mengunggah bukti pembayaran...' });
 
     const formData = new FormData();
-    formData.append('paymentProof', paymentProofFile);
+    formData.append('order_id', selectedOrder.id);
+    formData.append('payment_proof', paymentProofFile); 
 
     try {
-      // REFACTOR: Menggunakan axiosClient.post untuk FormData. Kita kirim FormData tanpa Content-Type eksplisit.
-      await axiosClient.post(`/orders/${selectedOrder.id}/payment`, formData, {
-          headers: {
-              // Menghapus Content-Type agar Axios/browser otomatis mengatur multipart/form-data
-              'Content-Type': undefined 
-          }
-      });
-      
+      await axiosClient.post(uploadUrl, formData);
+
       setUploadStatus({ type: 'success', message: 'Bukti pembayaran berhasil diunggah. Menunggu verifikasi admin.' });
       setPaymentProofFile(null);
       
@@ -109,7 +130,7 @@ const Orders = () => {
       }, 2000);
 
     } catch (err) {
-      const message = err.response?.data?.message || 'Gagal mengunggah bukti pembayaran.';
+      const message = err.response?.data?.message || 'Gagal mengunggah bukti pembayaran (Error 500). Coba lagi atau hubungi admin.';
       setUploadStatus({ type: 'error', message: message });
       console.error('Error in handleUploadProof:', err);
     }
@@ -119,6 +140,7 @@ const Orders = () => {
     switch (status) {
       case "pending":
       case "menunggu pembayaran":
+      case "menunggu verifikasi": 
         return "bg-softpink/50 text-elegantburgundy";
       case "diproses":
       case "dikirim":
@@ -134,15 +156,17 @@ const Orders = () => {
     }
   };
   
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString('id-ID', options);
-  };
   
-  const handleViewDetail = (order) => {
-      setSelectedOrder({ ...order, User: userData });
-      setShowDetailModal(true);
+  const handleViewDetail = async (order) => {
+      try {
+          const res = await axiosClient.get(`/orders/${order.id}`);
+          const detailedOrder = res.data.order;
+          setSelectedOrder({ ...detailedOrder, User: userData });
+          setShowDetailModal(true);
+      } catch (err) {
+          alert("Gagal memuat detail pesanan. " + (err.response?.data?.message || 'Kesalahan jaringan.'));
+          console.error("Error fetching order detail:", err);
+      }
   };
   
   const totalPages = Math.ceil(orders.length / itemsPerPage);
@@ -155,11 +179,13 @@ const Orders = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Kolom tabel diubah menjadi satu status saja
   const orderTableColumns = [
     { key: 'id', label: 'ID Pesanan', render: (order) => `#${order.id}` },
-    { key: 'created_at', label: 'Tanggal', render: (order) => formatDate(order.created_at) },
-    { key: 'total_price', label: 'Total Harga', render: (order) => `Rp ${order.total_price?.toLocaleString("id-ID")}` },
+        { 
+  key: 'createdAt', label: 'Tanggal Pesanan',sortable: true,
+  render: (order) => formatDate(order.created_at || order.createdAt)
+},
+    { key: 'total_price', label: 'Total Harga', render: (order) => `Rp ${parseFloat(order.total_price || 0)?.toLocaleString("id-ID")}` },
     {
       key: 'order_status', 
       label: 'Status Pesanan',
@@ -179,7 +205,7 @@ const Orders = () => {
       >
         Detail
       </button>
-      {order.order_status === 'pending' && (
+      {(order.order_status === 'pending' || order.order_status === 'menunggu pembayaran') && (
         <button
           onClick={() => { setSelectedOrder(order); setShowUploadModal(true); }}
           className="text-elegantburgundy hover:text-softpink transition-colors"
@@ -250,10 +276,10 @@ const Orders = () => {
           order={selectedOrder}
         />
 
-        {showUploadModal && (
+        {showUploadModal && selectedOrder && (
           <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full flex justify-center items-center z-50">
             <div className="bg-purewhite p-8 rounded-lg shadow-xl w-full max-w-md">
-              <h3 className="text-xl font-bold mb-4 text-darkgray">Unggah Bukti Pembayaran</h3>
+              <h3 className="text-xl font-bold mb-4 text-darkgray">Unggah Bukti Pembayaran (#{selectedOrder.id})</h3>
               {uploadStatus && (
                 <div className={`p-3 rounded-md mb-4 text-sm ${uploadStatus.type === 'success' ? 'bg-softpink/50 text-darkgray' : 'bg-softpink/50 text-elegantburgundy'}`}>
                   {uploadStatus.message}

@@ -1,145 +1,126 @@
 // server/controllers/authController.js
+const db = require('../models/index');
+const { User } = db;
+const jwt = require('jsonwebtoken');
+const { Op } = db.Sequelize;
 
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const { validationResult } = require("express-validator");
-const User = require("../models/user");
+// Fungsi Pendaftaran Pengguna Baru
+exports.register = async (req, res) => {
+    try {
+        // PERBAIKAN: Destructure menggunakan nama field dari FRONTEND (snake_case)
+        const { 
+            first_name, 
+            last_name, 
+            username, 
+            email, 
+            password,
+            address,
+            zip_code 
+        } = req.body;
 
-const setAuthCookie = (res, token, role, userId) => {
-  const maxAge = parseInt(
-    process.env.COOKIE_MAX_AGE || 7 * 24 * 60 * 60 * 1000,
-    10
-  );
-  res.cookie("accessToken", token, {
-    httpOnly: true,
-    secure: process.env.COOKIE_SECURE === "true",
-    sameSite: process.env.COOKIE_SAMESITE || "Strict",
-    maxAge,
-    path: "/",
-  });
-  res.cookie("userRole", role, {
-    httpOnly: false,
-    secure: process.env.COOKIE_SECURE === "true",
-    sameSite: process.env.COOKIE_SAMESITE || "Strict",
-    maxAge,
-    path: "/",
-  });
-  res.cookie("userId", userId, {
-    httpOnly: false,
-    secure: process.env.COOKIE_SECURE === "true",
-    sameSite: process.env.COOKIE_SAMESITE || "Strict",
-    maxAge,
-    path: "/",
-  });
-};
+        // Validasi input minimal (menggunakan nama field dari frontend)
+        if (!email || !password || !first_name || !last_name || !username) {
+            return res.status(400).json({ message: 'Semua field wajib diisi.' });
+        }
 
-exports.signup = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+        // Cek apakah email atau username sudah terdaftar
+        const existingUser = await User.findOne({
+            where: {
+                [Op.or]: [{ email }, { username }]
+            }
+        });
+
+        if (existingUser) {
+            let field = existingUser.email === email ? 'Email' : 'Username';
+            return res.status(409).json({ message: `${field} sudah terdaftar.` });
+        }
+
+        // Buat pengguna baru
+        const newUser = await User.create({
+            first_name: first_name,
+            last_name: last_name,
+            username,
+            email,
+            password,
+            address,
+            zip_code,
+        });
+
+        // Hasilkan JWT
+        const token = jwt.sign({ userId: newUser.id, role: newUser.role }, process.env.JWT_SECRET, {
+            expiresIn: '1d' 
+        });
+
+        res.status(201).json({
+            message: 'Pendaftaran berhasil!',
+            user: {
+                id: newUser.id,
+                username: newUser.username,
+                email: newUser.email,
+                role: newUser.role,
+                first_name: newUser.first_name
+            },
+            token
+        });
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ message: 'Pendaftaran gagal karena kesalahan server.', error: error.message });
     }
-
-    const {
-      first_name,
-      last_name,
-      username,
-      email,
-      password,
-      address,
-      zip_code,
-    } = req.body;
-
-    const exist = await User.findOne({ where: { email } });
-    if (exist)
-      return res.status(409).json({ message: "Email sudah terdaftar" });
-
-    const hash = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      first_name,
-      last_name,
-      username,
-      email,
-      password: hash,
-      address,
-      zip_code,
-      role: "user",
-    });
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: process.env.JWT_EXPIRES || "7d",
-      }
-    );
-
-    setAuthCookie(res, token, user.role, user.id);
-
-    return res.status(201).json({
-      message: "Signup berhasil",
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Gagal signup", error: err.message });
-  }
 };
 
+// Fungsi Login Pengguna
 exports.login = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email dan password wajib diisi.' });
+        }
+
+        const user = await User.findOne({ where: { email } });
+
+        if (!user || !user.isValidPassword(password)) {
+            return res.status(401).json({ message: 'Email atau Password salah.' });
+        }
+
+        const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, {
+            expiresIn: '1d'
+        });
+
+        res.status(200).json({
+            message: 'Login berhasil!',
+            user: {
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                email: user.email,
+                role: user.role,
+                address: user.address,
+                zip_code: user.zip_code
+            },
+            token
+        });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Login gagal karena kesalahan server.', error: error.message });
     }
-
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(401).json({ message: "Email atau password salah" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Email atau password salah" });
-    }
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: process.env.JWT_EXPIRES || "7d",
-      }
-    );
-
-    setAuthCookie(res, token, user.role, user.id);
-
-    return res.status(200).json({
-      message: "Login berhasil",
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Gagal login", error: err.message });
-  }
 };
 
-exports.logout = (_req, res) => {
-  res.clearCookie("accessToken");
-  res.clearCookie("userRole");
-  res.clearCookie("userId");
-  res.status(200).json({ message: "Logout berhasil" });
+// Fungsi untuk mendapatkan data user berdasarkan token yang aktif (Keep Alive/Auto Login)
+exports.getProfile = (req, res) => {
+    res.status(200).json({
+        message: 'Profile berhasil diambil.',
+        user: {
+            id: req.user.id,
+            first_name: req.user.first_name,
+            last_name: req.user.last_name,
+            email: req.user.email,
+            role: req.user.role,
+            address: req.user.address,
+            zip_code: req.user.zip_code,
+            username: req.user.username
+        }
+    });
 };

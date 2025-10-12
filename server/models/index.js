@@ -1,69 +1,54 @@
-const sequelize = require("../config/dbconfig");
+// server/models/index.js
+'use strict';
 
-const User = require("./user");
-const Order = require("./order");
-// const Shipping = require("./shipping"); // <-- Dihapus
-const Product = require("./product");
-const Category = require("./category");
-const Cart = require("./cart");
-const CartItem = require("./cartItem");
-const OrderItem = require("./orderItem");
-const Payment = require("./payment");
-const Message = require("./message");
+const fs = require('fs');
+const path = require('path');
+const Sequelize = require('sequelize');
+const process = require('process');
+const basename = path.basename(__filename);
+const env = process.env.NODE_ENV || 'development';
+const config = require(__dirname + '/../config/config.json')[env];
+const db = {};
 
-// Definisikan semua asosiasi di sini
-// Relasi Order dan User
-Order.belongsTo(User, { foreignKey: 'user_id' });
-User.hasMany(Order, { foreignKey: 'user_id' });
+let sequelize;
+if (config.use_env_variable) {
+  sequelize = new Sequelize(process.env[config.use_env_variable], config);
+} else {
+  // Ambil konfigurasi dari .env
+  sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
+    host: process.env.DB_HOST,
+    dialect: process.env.DB_DIALECT,
+    logging: false, // Matikan log SQL Sequelize
+    define: {
+      freezeTableName: true, // Nama tabel tidak diubah ke bentuk jamak oleh Sequelize
+      timestamps: true, // Aktifkan default timestamps (kecuali untuk CartItem, OrderItem, Payment, Message)
+      underscored: true, // Gunakan nama kolom snake_case (e.g., first_name)
+    }
+  });
+}
 
-// Relasi Order dan Shipping (Dihapus)
-// Order.hasOne(Shipping, { foreignKey: 'order_id' });
-// Shipping.belongsTo(Order, { foreignKey: 'order_id' });
+fs
+  .readdirSync(__dirname)
+  .filter(file => {
+    return (
+      file.indexOf('.') !== 0 &&
+      file !== basename &&
+      file.slice(-3) === '.js' &&
+      file.indexOf('.test.js') === -1
+    );
+  })
+  .forEach(file => {
+    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+    db[model.name] = model;
+  });
 
-// Relasi Product dan Category
-Product.belongsTo(Category, { foreignKey: 'category_id' });
-Category.hasMany(Product, { foreignKey: 'category_id' });
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
 
-// Relasi Order dan OrderItem
-Order.hasMany(OrderItem, { foreignKey: 'order_id' });
-OrderItem.belongsTo(Order, { foreignKey: 'order_id' });
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
 
-// Relasi Product dan OrderItem
-OrderItem.belongsTo(Product, { foreignKey: 'product_id' });
-Product.hasMany(OrderItem, { foreignKey: 'product_id' });
-
-// Relasi Payment dan Order
-Order.hasOne(Payment, { foreignKey: 'order_id' });
-Payment.belongsTo(Order, { foreignKey: 'order_id' });
-
-// Relasi Cart dan User
-Cart.belongsTo(User, { foreignKey: 'user_id' });
-User.hasOne(Cart, { foreignKey: 'user_id' });
-
-// Relasi Cart dan CartItem
-Cart.hasMany(CartItem, { foreignKey: 'cart_id' });
-CartItem.belongsTo(Cart, { foreignKey: 'cart_id' });
-
-// Relasi CartItem dan Product
-CartItem.belongsTo(Product, { foreignKey: 'product_id' });
-
-// Relasi Message dan User
-Message.belongsTo(User, { foreignKey: 'user_id' });
-User.hasMany(Message, { foreignKey: 'user_id' });
-
-// HANYA JALANKAN INI DI LINGKUNGAN PENGEMBANGAN!
-// sequelize.sync({ force: false });
-
-module.exports = {
-  sequelize,
-  User,
-  Order,
-  // Shipping, // <-- Dihapus
-  Product,
-  Category,
-  Cart,
-  CartItem,
-  OrderItem,
-  Payment,
-  Message,
-};
+module.exports = db;

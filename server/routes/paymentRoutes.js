@@ -1,14 +1,14 @@
-const express = require("express");
-const Payment = require("../models/payment");
+const express = require('express');
 const router = express.Router();
+const { paymentUpload } = require('../config/multerConfig');
+const paymentController = require('../controllers/paymentController');
+const { authenticate, isAdmin } = require('../middlewares/auth');
 
-router.get("/payments", async (req, res) => {
-  try {
-    const payments = await Payment.findAll();
-    res.json(payments);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching payments", error: err.message });
-  }
-});
+// USER ROUTE
+router.post('/upload', authenticate, paymentUpload, paymentController.uploadPaymentProof);
+
+// ADMIN ROUTES
+router.get('/pending', authenticate, isAdmin, paymentController.getPendingPayments);
+router.put('/:id/verify', authenticate, isAdmin, paymentController.verifyPayment);
 
 module.exports = router;

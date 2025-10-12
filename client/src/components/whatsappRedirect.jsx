@@ -1,24 +1,42 @@
-// client/src/components/WhatsappRedirect.jsx
+// client/src/components/whatsappRedirect.jsx
 import React from 'react';
 
-const WHATSAPP_NUMBER = "6289503609911"; // Ganti dengan nomor WhatsApp Anda
+const WHATSAPP_NUMBER = "62895421996608";// Ganti dengan nomor WhatsApp Anda
 
 const WhatsappRedirect = ({ order, user, cartItems }) => {
   const generateMessage = () => {
+    // FIX 1: Akses properti total_price, pastikan ia diubah ke string '0' jika null/undefined
+    const total = order?.total_price || 0; 
+    const totalString = String(total); 
+    
+    // FIX 2: Mengkonversi total_price dari string (DECIMAL) menjadi angka yang aman
+    const totalPriceValue = parseFloat(totalString);
+    const finalPrice = isNaN(totalPriceValue) ? 0 : totalPriceValue;
+    
+    const dateString = order.created_at || new Date().toISOString();
+    
     let message = `Halo Admin Shakilla Shop, saya ${user?.first_name} ${user?.last_name} ingin mengkonfirmasi pesanan saya. Berikut detail pesanan yang saya checkout:
     
-*Nomor Pesanan:* #${order.order_id}
-*Tanggal Pesanan:* ${new Date(order.created_at).toLocaleDateString('id-ID')}
-*Total Harga:* Rp ${order.total_price.toLocaleString('id-ID')}
+*Nomor Pesanan:* #${order.order_id || 'N/A'}
+*Tanggal Pesanan:* ${new Date(dateString).toLocaleDateString('id-ID')}
+*Total Harga:* Rp ${finalPrice.toLocaleString('id-ID')}
 
 *Detail Produk:*
 `;
 
-    cartItems.forEach(item => {
-      message += `- ${item.Product?.name} (Ukuran: ${item.size || 'N/A'}) - Qty: ${item.quantity} x Rp ${item.Product?.price.toLocaleString('id-ID')}
+    (cartItems || []).forEach(item => {
+      // Menggunakan item.product (huruf kecil)
+      const productName = item.product?.name || 'Produk Tidak Ditemukan';
+      const itemPrice = item.product?.price ? parseFloat(item.product.price) : 0;
+      const qty = item.quantity || 1;
+
+      message += `- ${productName} (Ukuran: ${item.size || 'N/A'}) - Qty: ${qty} x Rp ${itemPrice.toLocaleString('id-ID')}
 `;
     });
     
+    // Tambahkan alamat pengiriman dari data user
+    message += `\n*Alamat Pengiriman:* ${user?.address || 'Belum tersedia'}`;
+
     return message;
   };
 

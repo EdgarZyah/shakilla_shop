@@ -1,141 +1,24 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const { Cart, CartItem, Product } = require("../models");
-const { Op } = require("sequelize");
+const cartController = require('../controllers/cartController');
+const { authenticate } = require('../middlewares/auth');
 
-const authenticateUser = (req, res, next) => {
-  const userId = req.cookies.userId;
-  if (!userId) {
-    return res.status(401).json({ message: "Akses ditolak. Tidak ada user yang terautentikasi." });
-  }
-  req.userId = userId;
-  next();
-};
+// Semua rute ini memerlukan otentikasi pengguna
+router.use(authenticate);
 
-router.get("/carts/user/:userId", authenticateUser, async (req, res) => {
-    try {
-        const userId = parseInt(req.params.userId, 10);
-        if (parseInt(req.userId) !== userId) {
-            return res.status(403).json({ message: "Akses ditolak." });
-        }
-        
-        const cart = await Cart.findOne({
-            where: { user_id: userId },
-            include: [{
-                model: CartItem,
-                include: [{
-                    model: Product,
-                    attributes: ['id', 'name', 'price', 'thumbnail_url']
-                }]
-            }]
-        });
-        
-        if (!cart) {
-            return res.status(200).json({ cart: null, message: "Keranjang kosong." });
-        }
-        
-        res.json(cart);
-    } catch (err) {
-        console.error("Error fetching user cart:", err);
-        res.status(500).json({ message: "Gagal mengambil data keranjang.", error: err.message });
-    }
-});
+// GET /api/cart - Ambil isi keranjang
+router.get('/', cartController.getCart);
 
-router.post("/carts", authenticateUser, async (req, res) => {
-    try {
-        const { product_id, quantity, size } = req.body;
-        const userId = req.userId;
-        
-        let cart = await Cart.findOne({ where: { user_id: userId } });
-        if (!cart) {
-            cart = await Cart.create({ user_id: userId });
-        }
-        
-        let cartItem = await CartItem.findOne({ 
-            where: {
-                cart_id: cart.id,
-                product_id: product_id,
-                size: size
-            }
-        });
-        
-        if (cartItem) {
-            cartItem.quantity += quantity;
-            await cartItem.save();
-        } else {
-            const product = await Product.findByPk(product_id);
-            if (!product) {
-                return res.status(404).json({ message: "Produk tidak ditemukan." });
-            }
-            cartItem = await CartItem.create({
-                cart_id: cart.id,
-                product_id: product_id,
-                quantity: quantity,
-                size: size
-            });
-        }
-        
-        res.status(200).json({ message: "Produk berhasil ditambahkan ke keranjang!", cartItem });
-    } catch (err) {
-        console.error("Error adding to cart:", err);
-        res.status(500).json({ message: "Gagal menambahkan produk ke keranjang.", error: err.message });
-    }
-});
+// POST /api/cart - Tambah/Update item ke keranjang
+router.post('/', cartController.addToCart);
 
-// Rute baru untuk memperbarui kuantitas item
-router.put("/carts/item/:itemId", authenticateUser, async (req, res) => {
-    try {
-        const itemId = req.params.itemId;
-        const { quantity } = req.body;
-        const userId = req.userId;
+// FIX: PUT /api/cart/item/:itemId - Update kuantitas item
+router.put('/item/:itemId', cartController.updateCartItemQuantity);
 
-        const cart = await Cart.findOne({ where: { user_id: userId } });
-        if (!cart) {
-            return res.status(404).json({ message: "Keranjang tidak ditemukan." });
-        }
+// DELETE /api/cart/item/:itemId - Hapus satu item dari keranjang
+router.delete('/item/:itemId', cartController.removeItemFromCart);
 
-        const cartItem = await CartItem.findOne({ where: { id: itemId, cart_id: cart.id } });
-        if (!cartItem) {
-            return res.status(404).json({ message: "Item keranjang tidak ditemukan." });
-        }
-        
-        if (quantity < 1) {
-            // Hapus item jika kuantitas menjadi 0
-            await cartItem.destroy();
-            return res.status(200).json({ message: "Item berhasil dihapus dari keranjang." });
-        }
-
-        cartItem.quantity = quantity;
-        await cartItem.save();
-
-        res.status(200).json({ message: "Kuantitas berhasil diperbarui!", cartItem });
-    } catch (err) {
-        console.error("Error updating cart item:", err);
-        res.status(500).json({ message: "Gagal memperbarui kuantitas item.", error: err.message });
-    }
-});
-
-router.delete("/carts/item/:itemId", authenticateUser, async (req, res) => {
-    try {
-        const itemId = req.params.itemId;
-        const userId = req.userId;
-        
-        const cart = await Cart.findOne({ where: { user_id: userId } });
-        if (!cart) {
-            return res.status(404).json({ message: "Keranjang tidak ditemukan." });
-        }
-        
-        const cartItem = await CartItem.findOne({ where: { id: itemId, cart_id: cart.id } });
-        if (!cartItem) {
-            return res.status(404).json({ message: "Item keranjang tidak ditemukan." });
-        }
-        
-        await cartItem.destroy();
-        res.status(200).json({ message: "Item berhasil dihapus dari keranjang." });
-    } catch (err) {
-        console.error("Error removing from cart:", err);
-        res.status(500).json({ message: "Gagal menghapus item dari keranjang.", error: err.message });
-    }
-});
+// DELETE /api/cart/clear - Hapus seluruh isi keranjang
+router.delete('/clear', cartController.clearCart);
 
 module.exports = router;

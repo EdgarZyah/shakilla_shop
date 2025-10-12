@@ -1,20 +1,45 @@
-// shakilla_shop/server/models/payment.js
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/dbconfig");
-
-const Payment = sequelize.define(
-  "Payment",
-  {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    order_id: DataTypes.INTEGER,
-    payment_proof_url: DataTypes.STRING,
-    payment_status: DataTypes.ENUM('pending', 'verified'),
-    uploaded_at: DataTypes.DATE,
-  },
-  {
-    tableName: "payments",
-    timestamps: false,
+// server/models/payment.js
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class Payment extends Model {
+    static associate(models) {
+      Payment.belongsTo(models.Order, { foreignKey: 'order_id', as: 'order' });
+    }
   }
-);
-
-module.exports = Payment;
+  Payment.init({
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false,
+    },
+    // FIX: Mendefinisikan order_id secara eksplisit
+    order_id: { 
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    // FIX: Mendefinisikan payment_proof_url secara eksplisit
+    payment_proof_url: {
+      type: DataTypes.STRING,
+    },
+    payment_status: {
+      type: DataTypes.ENUM("pending", "verified"),
+      allowNull: false,
+      defaultValue: "pending",
+    },
+    // Menggunakan uploaded_at untuk konsistensi dengan skema
+    uploaded_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: sequelize.literal("CURRENT_TIMESTAMP"),
+    },
+  }, {
+    sequelize,
+    modelName: 'Payment',
+    tableName: 'payments',
+    timestamps: false,
+    underscored: true,
+  });
+  return Payment;
+};

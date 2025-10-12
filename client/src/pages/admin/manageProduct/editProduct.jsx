@@ -1,10 +1,11 @@
 // src/pages/admin/manageProduct/editProduct.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../../layouts/sidebar";
 import { adminMenu } from "../../../layouts/layoutAdmin/adminMenu";
 import { useParams, useNavigate } from "react-router-dom";
-import WarningModal from "../../../components/warningModal"; // Import komponen modal
-import axiosClient from "../../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import WarningModal from "../../../components/warningModal";
+import axiosClient from "../../../api/axiosClient";
+import { getCleanedImageUrl } from "../../../utils/imageHelper"; // ✅ gunakan helper resmi
 
 const EditProduct = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -12,7 +13,7 @@ const EditProduct = () => {
     name: "",
     price: "",
     description: "",
-    stock: "", // <-- Menambahkan state stock
+    stock: "",
     thumbnail: null,
     existingThumbnail: "",
     images: [],
@@ -22,66 +23,60 @@ const EditProduct = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); // State untuk modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Daftar MIME types yang diizinkan untuk validasi frontend
   const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  
-  useEffect(() => {
-    fetchProduct();
-    fetchCategories();
-  }, [id]);
 
-  const fetchProduct = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
-      // REFACTOR: Menggunakan axiosClient.get
-      const res = await axiosClient.get(`/products/${id}`);
-      const data = res.data;
+      const res = await axiosClient.get("/categories");
+      setCategories(res.data.categories);
+    } catch (err) {
+      console.error("Gagal mengambil kategori:", err);
+    }
+  }, []);
 
-      let imageUrls = [];
+  const fetchProduct = useCallback(async () => {
+    try {
+      const res = await axiosClient.get(`/products/${id}`);
+      const data = res.data.product;
+
+      let imagePaths = [];
       if (data.image_url && typeof data.image_url === "string") {
         try {
-          imageUrls = JSON.parse(data.image_url);
+          imagePaths = JSON.parse(data.image_url);
         } catch (e) {
-          console.error("Gagal mengurai image_url JSON string:", e);
+          console.error("Gagal parse image_url:", e);
         }
       } else if (Array.isArray(data.image_url)) {
-        imageUrls = data.image_url;
+        imagePaths = data.image_url;
       }
 
       setForm({
         name: data.name,
         price: data.price,
         description: data.description,
-        stock: data.stock, // <-- Mengambil nilai stock
+        stock: data.stock,
         thumbnail: null,
         existingThumbnail: data.thumbnail_url || "",
         images: [],
-        existingImages: imageUrls || [],
+        existingImages: imagePaths,
         category_id: data.category_id,
       });
-      setLoading(false);
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
-      const message = err.response?.data?.message || "Terjadi kesalahan jaringan saat mengambil produk.";
-      setStatus({ type: "error", message: message });
+      setStatus({ type: "error", message: "Gagal mengambil data produk." });
+    } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const fetchCategories = async () => {
-    try {
-      // REFACTOR: Menggunakan axiosClient.get
-      const res = await axiosClient.get("/categories");
-      const data = res.data;
-      setCategories(data);
-    } catch (err) {
-      console.error("Kesalahan jaringan saat mengambil kategori:", err);
-    }
-  };
+  useEffect(() => {
+    fetchProduct();
+    fetchCategories();
+  }, [fetchProduct, fetchCategories]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -93,37 +88,33 @@ const EditProduct = () => {
     if (file && !allowedTypes.includes(file.type)) {
       setModalMessage("Hanya file gambar (JPG, PNG, WEBP) yang diizinkan.");
       setIsModalOpen(true);
-      e.target.value = null; // Reset input file
+      e.target.value = null;
       return;
     }
-    setForm((prev) => ({ ...prev, thumbnail: file }));
+    setForm((prev) => ({ ...prev, thumbnail: file, existingThumbnail: "" }));
   };
 
   const handleImagesChange = (e) => {
     const files = Array.from(e.target.files);
-    const invalidFiles = files.filter(file => !allowedTypes.includes(file.type));
-    
-    if (invalidFiles.length > 0) {
-        setModalMessage("Hanya file gambar (JPG, PNG, WEBP) yang diizinkan.");
-        setIsModalOpen(true);
-        e.target.value = null; // Reset input file
-        return;
+    if (files.some((file) => !allowedTypes.includes(file.type))) {
+      setModalMessage("Hanya file gambar (JPG, PNG, WEBP) yang diizinkan.");
+      setIsModalOpen(true);
+      e.target.value = null;
+      return;
     }
-    
-    if (files.length + form.existingImages.length > 4) {
+    if (files.length + form.existingImages.length + form.images.length > 4) {
       setModalMessage("Maksimal 4 gambar utama diperbolehkan.");
       setIsModalOpen(true);
       e.target.value = null;
       return;
     }
-
-    setForm((prev) => ({ ...prev, images: files }));
+    setForm((prev) => ({ ...prev, images: [...prev.images, ...files] }));
   };
 
-  const handleRemoveExistingImage = (urlToRemove) => {
+  const handleRemoveExistingImage = (pathToRemove) => {
     setForm((prev) => ({
       ...prev,
-      existingImages: prev.existingImages.filter(url => url !== urlToRemove),
+      existingImages: prev.existingImages.filter((path) => path !== pathToRemove),
     }));
   };
 
@@ -133,13 +124,18 @@ const EditProduct = () => {
       images: prev.images.filter((_, index) => index !== indexToRemove),
     }));
   };
-  
-  const handleRemoveExistingThumbnail = () => {
-    setForm((prev) => ({ ...prev, existingThumbnail: "" }));
+
+  const handleRemoveThumbnail = () => {
+    setForm((prev) => ({ ...prev, thumbnail: null, existingThumbnail: "" }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.thumbnail && !form.existingThumbnail) {
+      setStatus({ type: "error", message: "Gambar thumbnail wajib diisi." });
+      return;
+    }
+
     setLoading(true);
     setStatus(null);
 
@@ -147,39 +143,26 @@ const EditProduct = () => {
     formData.append("name", form.name);
     formData.append("price", form.price);
     formData.append("description", form.description);
-    formData.append("stock", form.stock); // <-- Menambahkan stock ke formData
+    formData.append("stock", form.stock);
     formData.append("category_id", form.category_id);
-    formData.append("existing_images", JSON.stringify(form.existingImages));
-    if (form.thumbnail) {
-        formData.append("thumbnail", form.thumbnail);
-    }
 
-    form.images.forEach((image) => {
-        formData.append("images", image);
-    });
-    
-    if (form.images.length + form.existingImages.length > 4) {
-        setStatus({ type: "error", message: "Maksimal 4 gambar utama diperbolehkan." });
-        setLoading(false);
-        return;
+    formData.append("existing_images", JSON.stringify(form.existingImages));
+    formData.append("existing_thumbnail", form.existingThumbnail || "");
+
+    if (form.thumbnail) {
+      formData.append("thumbnail", form.thumbnail);
     }
+    form.images.forEach((image) => {
+      formData.append("images", image);
+    });
 
     try {
-      // REFACTOR: Menggunakan axiosClient.put untuk FormData
-      await axiosClient.put(`/products/${id}`, formData, {
-        headers: {
-            'Content-Type': undefined // Biarkan Axios/browser menentukan multipart/form-data
-        }
-      });
-
+      await axiosClient.put(`/products/${id}`, formData);
       setStatus({ type: "success", message: "Produk berhasil diperbarui!" });
-      setTimeout(() => {
-        navigate("/admin/list-produk");
-      }, 2000);
+      setTimeout(() => navigate("/admin/list-produk"), 2000);
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
       const message = err.response?.data?.message || "Gagal memperbarui produk.";
-      setStatus({ type: "error", message: message });
+      setStatus({ type: "error", message });
     } finally {
       setLoading(false);
     }
@@ -189,115 +172,255 @@ const EditProduct = () => {
     return (
       <div className="flex min-h-screen bg-lightmauve items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-elegantburgundy"></div>
-        <span className="ml-4 text-xl font-semibold text-darkgray">Memuat data produk...</span>
       </div>
     );
   }
 
-  const existingImagesCount = form.existingImages.length;
-  const remainingUploads = 4 - existingImagesCount;
+  const totalImages = form.existingImages.length + form.images.length;
 
   return (
     <div className="py-16 md:py-0 w-screen min-h-screen bg-lightmauve">
-      <Sidebar menu={adminMenu} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-      <main className={`flex-1 p-6 md:p-8 lg:p-10 transition-all duration-300 ease-in-out ${isSidebarOpen ? "md:ml-64" : "md:ml-20"}`}>
+      <Sidebar
+        menu={adminMenu}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
+      <main
+        className={`flex-1 p-6 md:p-8 lg:p-10 transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? "md:ml-64" : "md:ml-20"
+        }`}
+      >
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-darkgray mb-2">Edit Produk</h1>
-          <p className="text-darkgray/70">Perbarui informasi produk {form.name}.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-darkgray mb-2">
+            Edit Produk
+          </h1>
+          <p className="text-darkgray/70">
+            Perbarui informasi untuk produk {form.name}.
+          </p>
         </div>
 
         {status && (
-          <div className={`p-4 mb-4 text-sm rounded-lg ${status.type === "success" ? "bg-softpink/50 text-darkgray" : "bg-softpink/50 text-elegantburgundy"}`} role="alert">
+          <div
+            className={`p-4 mb-4 text-sm rounded-lg ${
+              status.type === "success"
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
             {status.message}
           </div>
         )}
 
         <div className="bg-purewhite rounded-lg shadow-sm border border-lightmauve p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Nama Produk */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-darkgray">Nama Produk</label>
-              <input type="text" id="name" name="name" value={form.name} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-darkgray"
+              >
+                Nama Produk
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={form.name}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
+                required
+              />
             </div>
+
+            {/* Harga */}
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-darkgray">Harga</label>
-              <input type="number" id="price" name="price" value={form.price} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
+              <label
+                htmlFor="price"
+                className="block text-sm font-medium text-darkgray"
+              >
+                Harga
+              </label>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                value={form.price}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
+                required
+              />
             </div>
+
+            {/* Stok */}
             <div>
-              <label htmlFor="stock" className="block text-sm font-medium text-darkgray">Stok</label>
-              <input type="number" id="stock" name="stock" value={form.stock} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
+              <label
+                htmlFor="stock"
+                className="block text-sm font-medium text-darkgray"
+              >
+                Stok
+              </label>
+              <input
+                type="number"
+                id="stock"
+                name="stock"
+                value={form.stock}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
+                required
+              />
             </div>
+
+            {/* Deskripsi */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-darkgray">Deskripsi</label>
-              <textarea id="description" name="description" value={form.description} onChange={handleInputChange} rows="4" className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required />
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-darkgray"
+              >
+                Deskripsi
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                value={form.description}
+                onChange={handleInputChange}
+                rows="4"
+                className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
+                required
+              />
             </div>
+
+            {/* Kategori */}
             <div>
-              <label htmlFor="category_id" className="block text-sm font-medium text-darkgray">Kategori</label>
-              <select id="category_id" name="category_id" value={form.category_id} onChange={handleInputChange} className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2" required>
+              <label
+                htmlFor="category_id"
+                className="block text-sm font-medium text-darkgray"
+              >
+                Kategori
+              </label>
+              <select
+                id="category_id"
+                name="category_id"
+                value={form.category_id}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
+                required
+              >
                 <option value="">Pilih Kategori</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
                 ))}
               </select>
             </div>
 
-            {/* Input Thumbnail Baru */}
+            {/* Thumbnail */}
             <div>
-              <label className="block text-sm font-medium text-darkgray">Gambar Thumbnail</label>
-              {form.existingThumbnail && !form.thumbnail ? (
-                <div className="mt-2 relative">
-                  <img src={form.existingThumbnail} alt="Thumbnail Saat Ini" className="h-32 w-32 object-cover rounded-md" />
-                  <button type="button" onClick={handleRemoveExistingThumbnail} className="absolute top-1 right-1 bg-elegantburgundy text-purewhite rounded-full p-1 text-xs">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
+              <label
+                htmlFor="thumbnail"
+                className="block text-sm font-medium text-darkgray"
+              >
+                Gambar Thumbnail (Wajib)
+              </label>
+              <input
+                type="file"
+                id="thumbnail"
+                name="thumbnail"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleThumbnailChange}
+                className="mt-1 block w-full text-sm text-darkgray file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lightmauve file:text-elegantburgundy hover:file:bg-softpink"
+              />
+              {(form.thumbnail || form.existingThumbnail) && (
+                <div className="mt-4 relative inline-block">
+                  <img
+                    src={
+                      form.thumbnail
+                        ? URL.createObjectURL(form.thumbnail)
+                        : getCleanedImageUrl(form.existingThumbnail)
+                    }
+                    alt="Thumbnail Preview"
+                    className="h-32 w-32 object-cover rounded-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveThumbnail}
+                    className="absolute top-1 right-1 bg-elegantburgundy text-purewhite rounded-full p-1 text-xs"
+                  >
+                    ✕
                   </button>
                 </div>
-              ) : null}
-              <input type="file" id="newThumbnail" name="thumbnail" accept="image/jpeg,image/png,image/webp" onChange={handleThumbnailChange} className="mt-1 block w-full text-sm text-darkgray file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lightmauve file:text-elegantburgundy hover:file:bg-softpink" />
+              )}
             </div>
 
+            {/* Gambar Lain */}
             <div>
-              <label className="block text-sm font-medium text-darkgray">Gambar Saat Ini ({existingImagesCount}/{4})</label>
-              <div className="mt-2 flex flex-wrap gap-4">
-                {form.existingImages.map((url, index) => (
-                  <div key={index} className="relative">
-                    <img src={url} alt={`Produk ${index}`} className="h-32 w-32 object-cover rounded-md" />
-                    <button type="button" onClick={() => handleRemoveExistingImage(url)} className="absolute top-1 right-1 bg-elegantburgundy text-purewhite rounded-full p-1 text-xs">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+              <label
+                htmlFor="images"
+                className="block text-sm font-medium text-darkgray"
+              >
+                Gambar Produk Lainnya (Maks. 4)
+              </label>
+              <input
+                type="file"
+                id="images"
+                name="images"
+                multiple
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImagesChange}
+                className="mt-1 block w-full text-sm text-darkgray file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lightmauve file:text-elegantburgundy hover:file:bg-softpink"
+                disabled={totalImages >= 4}
+              />
+              <div className="mt-4 flex flex-wrap gap-4">
+                {form.existingImages.map((path, index) => (
+                  <div key={`existing-${index}`} className="relative">
+                    <img
+                      src={getCleanedImageUrl(path)} // ✅ gunakan helper yang sama
+                      alt={`Produk ${index}`}
+                      className="h-32 w-32 object-cover rounded-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveExistingImage(path)}
+                      className="absolute top-1 right-1 bg-elegantburgundy text-purewhite rounded-full p-1 text-xs"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
-              </div>
-            </div>
-            <div>
-              <label htmlFor="newImages" className="block text-sm font-medium text-darkgray">Unggah Gambar Baru (Maks. {remainingUploads})</label>
-              <input type="file" id="newImages" name="images" multiple accept="image/jpeg,image/png,image/webp" onChange={handleImagesChange} className="mt-1 block w-full text-sm text-darkgray file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lightmauve file:text-elegantburgundy hover:file:bg-softpink" disabled={remainingUploads <= 0} />
-              <div className="mt-4 flex flex-wrap gap-4">
                 {form.images.map((image, index) => (
-                  <div key={index} className="relative">
-                    <img src={URL.createObjectURL(image)} alt={`Preview ${index}`} className="h-32 w-32 object-cover rounded-md" />
-                    <button type="button" onClick={() => handleRemoveNewImage(index)} className="absolute top-1 right-1 bg-elegantburgundy text-purewhite rounded-full p-1 text-xs">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
+                  <div key={`new-${index}`} className="relative">
+                    <img
+                      src={URL.createObjectURL(image)}
+                      alt={`Preview ${index}`}
+                      className="h-32 w-32 object-cover rounded-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveNewImage(index)}
+                      className="absolute top-1 right-1 bg-elegantburgundy text-purewhite rounded-full p-1 text-xs"
+                    >
+                      ✕
                     </button>
                   </div>
                 ))}
               </div>
             </div>
-            <button type="submit" disabled={loading} className="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-purewhite bg-elegantburgundy hover:bg-softpink focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-elegantburgundy disabled:opacity-50">
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-purewhite bg-elegantburgundy hover:bg-softpink focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-elegantburgundy disabled:opacity-50"
+            >
               {loading ? "Memperbarui..." : "Perbarui Produk"}
             </button>
           </form>
         </div>
       </main>
-      
-      <WarningModal 
+
+      <WarningModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Warning!"
+        title="Peringatan!"
         message={modalMessage}
       />
     </div>

@@ -1,8 +1,9 @@
 // shakilla_shop/client/src/layouts/sidebar.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
+// Hapus import Cookies
 import logo from "../assets/logo-transparent.png";
+import axiosClient from "../api/axiosClient";
 
 const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
   const location = useLocation();
@@ -11,35 +12,26 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLinkClick = () => {
-    if (isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
-  };
+  // --- PERBAIKAN: Ambil dari sessionStorage ---
+  const userRole = sessionStorage.getItem("userRole");
+  const userId = sessionStorage.getItem("userId");
 
   const handleLogout = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = async () => {
-    try {
-      const res = await fetch("http://localhost:3001/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (res.ok) {
-        Cookies.remove("userRole");
-        Cookies.remove("userId");
-        navigate("/login");
-      } else {
-        console.error("Gagal logout:", await res.json());
-      }
-    } catch (err) {
-      console.error("Terjadi kesalahan jaringan saat logout:", err);
-    } finally {
-      setShowLogoutModal(false);
-    }
+  const confirmLogout = () => {
+    // Menghapus semua data otentikasi dari sessionStorage
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("userRole");
+    sessionStorage.removeItem("userId");
+
+    // Mengarahkan ke halaman login dan me-refresh untuk membersihkan state global React
+    navigate("/login", { replace: true });
+    window.location.reload();
   };
+
+  // ... (handleLinkClick, useEffect, toggleDropdown, defaultMenu remain the same) ...
 
   useEffect(() => {
     const handleResize = () => {
@@ -79,7 +71,7 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
     },
     {
       label: "Products",
-      to: "/admin/products",
+      to: "/admin/list-produk",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -96,6 +88,11 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
           />
         </svg>
       ),
+      children: [
+        { label: "Tambah Produk", to: "/admin/tambah-produk" },
+        { label: "List Produk", to: "/admin/list-produk" },
+        { label: "List Kategori", to: "/admin/list-kategori" },
+      ],
     },
     {
       label: "Users",
@@ -119,7 +116,7 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
     },
     {
       label: "Orders",
-      to: "/admin/orders",
+      to: "/admin/riwayat",
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -133,6 +130,26 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
             strokeLinecap="round"
             strokeLinejoin="round"
             d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v10a2 2 0 01-2 2z"
+          />
+        </svg>
+      ),
+    },
+    {
+      label: "Beranda",
+      to: "/",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6"
           />
         </svg>
       ),
@@ -219,7 +236,18 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
         <nav className="mt-4 flex-1 overflow-y-auto overflow-x-hidden px-2 md:px-4">
           <ul className="space-y-1">
             {finalMenu.map((item, idx) => {
-              const isActive = location.pathname === item.to;
+              const itemTo =
+                item.label === "Dashboard" && userRole
+                  ? userRole === "admin"
+                    ? "/admin/dashboard"
+                    : "/user/dashboard"
+                  : item.to;
+
+              const isActive =
+                item.label === "Beranda"
+                  ? location.pathname === itemTo
+                  : location.pathname.startsWith(itemTo);
+
               const hasChildren = item.children && item.children.length > 0;
               const isDropdownOpen = openDropdown === item.label;
 
@@ -227,15 +255,15 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
                 <li key={idx}>
                   {!hasChildren ? (
                     <Link
-                      to={item.to}
+                      to={itemTo}
                       className={`flex items-center gap-3 p-3 rounded-lg transition-colors duration-200
-                        ${isSidebarOpen ? "justify-start" : "justify-center"}
-                        ${
-                          isActive
-                            ? "bg-lightmauve text-elegantburgundy font-semibold"
-                            : "text-darkgray hover:bg-lightmauve"
-                        }
-                      `}
+            ${isSidebarOpen ? "justify-start" : "justify-center"}
+            ${
+              isActive
+                ? "bg-lightmauve text-elegantburgundy font-semibold"
+                : "text-darkgray hover:bg-lightmauve"
+            }
+          `}
                       title={!isSidebarOpen ? item.label : ""}
                     >
                       {item.icon}
@@ -249,12 +277,11 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
                         onClick={() => toggleDropdown(item.label)}
                         className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors duration-200
                           ${
-                            isSidebarOpen
-                              ? "justify-between"
-                              : "justify-center"
+                            isSidebarOpen ? "justify-between" : "justify-center"
                           }
                           ${
-                            isDropdownOpen || isActive
+                            isDropdownOpen ||
+                            (isActive && item.label !== "Beranda") // Jangan menyorot dropdown jika hanya Beranda yang aktif
                               ? "bg-lightmauve text-elegantburgundy font-semibold"
                               : "text-darkgray hover:bg-lightmauve"
                           }
@@ -366,32 +393,40 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
         <div className="px-4 py-6">
           <nav>
             <ul className="space-y-1">
-              {finalMenu.map((item, idx) => (
-                <li key={idx}>
-                  <Link
-                    to={item.to}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="block p-3 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
-                  >
-                    {item.label}
-                  </Link>
-                  {item.children && (
-                    <ul className="ml-4 mt-1 space-y-1">
-                      {item.children.map((child, cidx) => (
-                        <li key={cidx}>
-                          <Link
-                            to={child.to}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            className="block px-4 py-2 rounded-lg text-sm text-darkgray/70 hover:bg-lightmauve"
-                          >
-                            {child.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
+              {finalMenu.map((item, idx) => {
+                const itemTo =
+                  item.label === "Dashboard" && userRole
+                    ? userRole === "admin"
+                      ? "/admin/dashboard"
+                      : "/user/dashboard"
+                    : item.to;
+                return (
+                  <li key={idx}>
+                    <Link
+                      to={itemTo}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block p-3 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
+                    >
+                      {item.label}
+                    </Link>
+                    {item.children && (
+                      <ul className="ml-4 mt-1 space-y-1">
+                        {item.children.map((child, cidx) => (
+                          <li key={cidx}>
+                            <Link
+                              to={child.to}
+                              onClick={() => setIsMobileMenuOpen(false)}
+                              className="block px-4 py-2 rounded-lg text-sm text-darkgray/70 hover:bg-lightmauve"
+                            >
+                              {child.label}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </nav>
 

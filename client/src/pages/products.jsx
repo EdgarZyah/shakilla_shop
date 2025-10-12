@@ -4,7 +4,7 @@ import Footer from "../layouts/footer.jsx";
 import Hero from "../components/hero.jsx";
 import Card from "../components/card";
 import Pagination from "../components/pagination";
-import axiosClient from "../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../api/axiosClient";
 
 const heroTitle = "Discover the Latest Fashion Trends";
 const heroSubtitle = "[ Explore our curated collection of style & elegance ]";
@@ -16,16 +16,14 @@ const Products = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  // Ambil produk dari backend
   useEffect(() => {
     const fetchProducts = async () => {
         try {
-            // REFACTOR: Menggunakan axiosClient.get
             const res = await axiosClient.get("/products");
-            setProducts(res.data);
+            // FIX: Mengambil array produk dari .data.products
+            setProducts(res.data.products); 
         } catch (err) {
             console.error("Error fetching products:", err);
-            // Tetapkan produk kosong jika terjadi kesalahan
             setProducts([]);
         }
     };
@@ -35,7 +33,8 @@ const Products = () => {
   // Ambil daftar kategori unik dari produk
   const categories = [
     "All Categories",
-    ...new Set(products.map((p) => p.Category?.name).filter(Boolean)),
+    // FIX: Menggunakan alias lowercase 'category'
+    ...new Set(products.map((p) => p.category?.name).filter(Boolean)), 
   ];
 
   // Filter produk berdasarkan search dan kategori
@@ -45,7 +44,8 @@ const Products = () => {
       .includes(searchTerm.toLowerCase());
     const matchesCategory =
       selectedCategory === "All Categories" ||
-      product.Category?.name === selectedCategory;
+      // FIX: Menggunakan alias lowercase 'category'
+      product.category?.name === selectedCategory; 
     return matchesSearch && matchesCategory;
   });
 

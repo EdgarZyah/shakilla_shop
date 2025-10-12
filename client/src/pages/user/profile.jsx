@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu"; 
-import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
-import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../../api/axiosClient"; 
 
 const Profile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -11,7 +10,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const userId = Cookies.get('userId');
+  const userId = sessionStorage.getItem('userId');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,14 +25,13 @@ const Profile = () => {
     }
     setLoading(true);
     try {
-      // REFACTOR: Menggunakan axiosClient.get
-      const response = await axiosClient.get(`/users/${userId}`);
+      // FIX: Panggil endpoint profil yang benar
+      const response = await axiosClient.get(`/users/profile`); 
       const data = response.data;
       
-      setUserData(data);
+      setUserData(data.user); 
       setError(null);
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
       const message = err.response?.data?.message || "Gagal mengambil data profil.";
       setError(message);
       console.error("Error fetching user data:", err);

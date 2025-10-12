@@ -1,25 +1,57 @@
-import axios from 'axios';
+// shakilla_shop/client/src/api/axiosClient.js
+import axios from "axios";
 
-// Gunakan environment variable VITE_API_URL untuk URL base.
-// Jika tidak ada, fallback ke hardcode URL saat ini.
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
-/* const API_BASE_URL = import.meta.env.VITE_API_URL || "http://api2.logikarya.my.id/api"; */
+// Ambil BASE_URL API dari environment variable (Vite) atau gunakan default
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
+// URL Root Server (misal: http://localhost:3001). Ini adalah basis untuk gambar.
+const SERVER_ROOT_URL = API_URL.replace("/api", "");
+
+/**
+ * URL Dasar untuk mengambil file statis (misalnya gambar) dari folder server/uploads.
+ * Contoh: http://localhost:3001/uploads
+ */
+export const IMAGE_BASE_URL = `${SERVER_ROOT_URL}/uploads`; // Menggunakan SERVER_ROOT_URL
 
 const axiosClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  // Penting: Mengizinkan pengiriman cookies, menggantikan fetch options: { credentials: 'include' }
-  withCredentials: true,
+  baseURL: API_URL, // Digunakan untuk semua panggilan API (misal: /api/products)
 });
 
-// Interceptor opsional untuk penanganan error/refresh token global
-axiosClient.interceptors.response.use(
-  (response) => response,
+// Interceptor untuk menyisipkan token JWT
+axiosClient.interceptors.request.use(
+  (config) => {
+    const token = sessionStorage.getItem("accessToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
   (error) => {
     return Promise.reject(error);
   }
 );
 
-export default axiosClient;
+// Interceptor untuk menangani error 401/403
+axiosClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      console.error("Akses ditolak atau token kedaluwarsa. Sesi dibersihkan.");
+      sessionStorage.removeItem("accessToken");
+      sessionStorage.removeItem("userRole");
+      sessionStorage.removeItem("userId");
+      window.location.reload(); // Paksa reload untuk redirect ke halaman login
+    }
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Fungsi ini menghasilkan URL dasar server (misal: http://localhost:3001)
+ * untuk memuat file statis lainnya jika dibutuhkan.
+ */
+export const getServerUrl = () => {
+  return SERVER_ROOT_URL;
+};
+
+export default axiosClient; // PENTING: Export default agar bisa diimpor

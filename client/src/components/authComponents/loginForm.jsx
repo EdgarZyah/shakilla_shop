@@ -1,26 +1,59 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; 
+import axiosClient from '../../api/axiosClient'; 
 
 const LoginForm = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState(''); 
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  const navigate = useNavigate(); 
+
+  const handleSubmit = async (e) => { 
     e.preventDefault();
-    // Contoh logika login, ganti dengan API call sesuai backend Anda
-    if (!username || !password) {
-      setErrorMsg('Username dan password wajib diisi');
+    setErrorMsg(''); 
+
+    if (!email || !password) {
+      setErrorMsg('Email dan password wajib diisi');
       return;
     }
-    // Implement login request ke API di sini
-    setErrorMsg('');
-    // Redirect atau tampilkan pesan lain berdasarkan respons
+
+    try {
+      const response = await axiosClient.post("/auth/login", {
+        email,
+        password,
+      });
+
+      // Ambil token dan user dari body respons (sesuai output server Anda)
+      const { token, user } = response.data;
+      const role = user.role;
+
+      // --- Perbaikan Utama: Simpan Token dan Role ke localStorage ---
+      localStorage.setItem("accessToken", token);
+      localStorage.setItem("userRole", role); 
+      
+      // Logika Redirection Berdasarkan Role
+      if (role === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (role === 'user') {
+        navigate('/user/dashboard', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+
+    } catch (error) {
+      const message = error.response?.data?.message || 'Login gagal. Email atau password salah.';
+      setErrorMsg(message);
+      console.error("Login error:", error);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errorMsg && (
-        <div className="bg-red-100 text-red-700 p-2 rounded text-sm mb-2">{errorMsg}</div>
+        <div className="bg-red-100 text-red-700 p-2 rounded text-sm mb-2">
+          {errorMsg}
+        </div>
       )}
       <div>
         <label className="block mb-1 text-gray-600 text-sm">Username</label>

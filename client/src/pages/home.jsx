@@ -8,23 +8,30 @@ import DisplayLeft from "../components/displayLeft.jsx";
 import DisplayRight from "../components/displayRight.jsx";
 import Contact from "../components/contact.jsx";
 import WhatsappOverlay from "../components/whatsappOverlay";
+import axiosClient from "../api/axiosClient"; // <-- FIX: Import axiosClient
+
 const Home = () => {
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/products")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setProducts(data);
-        } else {
-          setProducts([]);
-          console.error("Data produk dari backend bukan array:", data);
+    const fetchProducts = async () => {
+        try {
+            // FIX: Menggunakan axiosClient dan mengambil produk dari .data.products
+            const res = await axiosClient.get("/products");
+            const data = res.data.products; // FIX
+
+            if (Array.isArray(data)) {
+              setProducts(data);
+            } else {
+              setProducts([]);
+              console.error("Data produk dari backend bukan array:", res.data);
+            }
+        } catch (err) {
+            console.error("Gagal fetch produk:", err);
+            setProducts([]);
         }
-      })
-      .catch((err) => {
-        console.error("Gagal fetch produk:", err);
-      });
+    };
+    fetchProducts();
   }, []);
 
   const handleAddToCart = (productId) => {

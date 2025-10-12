@@ -1,47 +1,53 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/dbconfig");
-const Category = require("./category");
-
-const Product = sequelize.define(
-  "Product",
-  {
+// server/models/product.js
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class Product extends Model {
+    static associate(models) {
+      Product.belongsTo(models.Category, { foreignKey: 'category_id', as: 'category' });
+      Product.hasMany(models.CartItem, { foreignKey: 'product_id', as: 'cartItems' });
+      Product.hasMany(models.OrderItem, { foreignKey: 'product_id', as: 'orderItems' });
+    }
+  }
+  
+  Product.init({
     id: {
       type: DataTypes.INTEGER,
-      autoIncrement: true,
       primaryKey: true,
-    },
-    name: {
-      type: DataTypes.STRING,
+      autoIncrement: true,
       allowNull: false,
     },
-    price: {
-      type: DataTypes.DECIMAL(12, 2), // Perbaikan tipe data
+    name: {
+      type: DataTypes.STRING(150),
       allowNull: false,
     },
     description: {
       type: DataTypes.TEXT,
-      allowNull: true,
+    },
+    price: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+    },
+    stock: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    // FIX UTAMA: Menggunakan snake_case secara eksplisit di model
+    category_id: { 
+      type: DataTypes.INTEGER,
+      allowNull: false, 
     },
     thumbnail_url: {
       type: DataTypes.STRING,
-      allowNull: true,
     },
     image_url: {
-      type: DataTypes.JSON, // Perbaikan tipe data
-      allowNull: true,
+      type: DataTypes.TEXT, // FIX: Menggunakan TEXT untuk menampung JSON String yang panjang
     },
-    category_id: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-    },
-  },
-  {
-    tableName: "products",
-    timestamps: false,
-  }
-);
-
-Product.belongsTo(Category, { foreignKey: 'category_id' });
-Category.hasMany(Product, { foreignKey: 'category_id' });
-
-module.exports = Product;
+  }, {
+    sequelize,
+    modelName: 'Product',
+    tableName: 'products',
+    underscored: true,
+  });
+  return Product;
+};

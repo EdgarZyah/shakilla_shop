@@ -1,54 +1,82 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/dbconfig");
+// server/models/user.js
+'use strict';
+const { Model } = require('sequelize');
+const bcrypt = require('bcryptjs');
 
-const User = sequelize.define(
-  "User",
-  {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+module.exports = (sequelize, DataTypes) => {
+  class User extends Model {
+    static associate(models) {
+      User.hasMany(models.Cart, { foreignKey: 'user_id', as: 'carts' });
+      User.hasMany(models.Order, { foreignKey: 'user_id', as: 'orders' });
+      User.hasMany(models.Message, { foreignKey: 'user_id', as: 'messages' });
+    }
+
+    // Method untuk membandingkan password saat login
+    isValidPassword(password) {
+      return bcrypt.compareSync(password, this.password);
+    }
+  }
+
+  User.init({
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false,
+    },
     first_name: {
-      // Tambahkan kolom nama depan
       type: DataTypes.STRING,
       allowNull: false,
     },
     last_name: {
-      // Tambahkan kolom nama belakang
       type: DataTypes.STRING,
       allowNull: false,
     },
-    username: DataTypes.STRING,
+    username: {
+      type: DataTypes.STRING,
+      unique: true,
+    },
     email: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
-      validate: {
-        isEmail: true,
-      },
+      validate: { isEmail: true }
     },
     password: {
       type: DataTypes.STRING,
       allowNull: false,
     },
     address: {
-      // Tambahkan kolom alamat
       type: DataTypes.STRING,
-      allowNull: true, // Bisa disesuaikan
     },
     zip_code: {
-      // Tambahkan kolom kode pos
       type: DataTypes.STRING,
-      allowNull: true, // Bisa disesuaikan
     },
     role: {
       type: DataTypes.STRING,
       defaultValue: "user",
     },
-  },
-  {
-    tableName: "users",
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at",
-  }
-);
+    // Sequelize secara otomatis menangani `createdAt` dan `updatedAt`
+  }, {
+    sequelize,
+    modelName: 'User',
+    tableName: 'users',
+    underscored: true, // Menggunakan snake_case untuk kolom database
+    hooks: {
+      // Sebelum User dibuat, hash password-nya
+      beforeCreate: async (user) => {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      },
+      // Sebelum User diupdate, hash password jika diubah
+      beforeUpdate: async (user) => {
+        if (user.changed('password')) {
+          const salt = await bcrypt.genSalt(10);
+          user.password = await bcrypt.hash(user.password, salt);
+        }
+      }
+    }
+  });
 
-module.exports = User;
+  return User;
+};

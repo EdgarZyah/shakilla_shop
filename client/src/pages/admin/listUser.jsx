@@ -1,11 +1,11 @@
+// src/pages/admin/listUser.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { adminMenu } from "../../layouts/layoutAdmin/adminMenu";
-import Cookies from "js-cookie";
 import Table from "../../components/table";
 import ModalHapus from "../../components/modalHapus";
 import Pagination from "../../components/pagination";
-import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../../api/axiosClient"; 
 
 const ListUser = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -26,7 +26,8 @@ const ListUser = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
-  const currentUserId = parseInt(Cookies.get('userId'), 10);
+  // FIX: Menggunakan sessionStorage
+  const currentUserId = parseInt(sessionStorage.getItem('userId'), 10); 
 
   useEffect(() => {
     fetchUsers();
@@ -35,15 +36,14 @@ const ListUser = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      // REFACTOR: Menggunakan axiosClient.get
       const response = await axiosClient.get("/users");
-      const data = response.data;
+      const data = response.data.users;
       
       if (Array.isArray(data)) {
         setUsers(data);
       } else {
         setUsers([]);
-        console.error("Data users bukan array:", data);
+        console.error("Data users bukan array:", response.data);
       }
     } catch (error) {
       console.error("Error fetch users:", error);
@@ -65,13 +65,11 @@ const ListUser = () => {
     setLoading(true);
     setDeleteStatus(null);
     try {
-      // REFACTOR: Menggunakan axiosClient.delete
       await axiosClient.delete(`/users/${userToDelete.id}`);
 
       setUsers(users.filter(user => user.id !== userToDelete.id));
       setDeleteStatus({ type: "success", message: "Pengguna berhasil dihapus." });
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
       const message = err.response?.data?.message || "Gagal menghapus pengguna.";
       console.error("Error deleting user:", err);
       setDeleteStatus({ type: "error", message: message });
@@ -97,34 +95,41 @@ const ListUser = () => {
     try {
       let roleUpdated = false;
       let passwordUpdated = false;
-
+      const isSelfEdit = editingUser.id === currentUserId;
+      
+      // --- 1. Update ROLE (untuk diri sendiri atau pengguna lain) ---
       if (newRole && newRole !== editingUser.role) {
-        // REFACTOR: Menggunakan axiosClient.put
         await axiosClient.put(`/users/${editingUser.id}/role`, { role: newRole });
         roleUpdated = true;
       }
 
-      if (newPassword && newPassword.length >= 8) {
-        // REFACTOR: Menggunakan axiosClient.put
-        await axiosClient.put(`/users/${editingUser.id}/password`, { newPassword });
+      // --- 2. Update PASSWORD (Hanya untuk DIRI SENDIRI) ---
+      if (isSelfEdit && newPassword) {
+        if (newPassword.length < 8) {
+             setEditStatus({ type: "error", message: "Password baru minimal 8 karakter." });
+             return; 
+        }
+        // FIX UTAMA: Panggil endpoint khusus untuk ganti password sendiri
+        await axiosClient.put(`/users/profile/password`, { newPassword: newPassword });
         passwordUpdated = true;
       }
       
       const message = [];
       if (roleUpdated) message.push("Role berhasil diperbarui.");
       if (passwordUpdated) message.push("Password berhasil diperbarui.");
-
+      
       if (message.length > 0) {
         setEditStatus({ type: "success", message: message.join(" ") });
-        await fetchUsers();
+        await fetchUsers(); // Refresh data pengguna
         setShowEditModal(false);
       } else {
         setEditStatus({ type: "success", message: "Tidak ada perubahan yang disimpan." });
+        setShowEditModal(false);
       }
 
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
-      const message = err.response?.data?.message || "Gagal memperbarui data pengguna.";
+      const defaultMessage = isSelfEdit ? "Gagal memperbarui profil." : "Gagal memperbarui data pengguna.";
+      const message = err.response?.data?.message || defaultMessage;
       setEditStatus({ type: "error", message: message });
     }
   };
@@ -336,6 +341,7 @@ const ListUser = () => {
                 </select>
               </div>
               
+              {/* Password Change ONLY for self */}
               {editingUser.id === currentUserId && (
                 <div>
                   <label className="block text-sm font-medium text-darkgray">Ganti Password</label>
@@ -348,6 +354,10 @@ const ListUser = () => {
                   />
                 </div>
               )}
+              {editingUser.id !== currentUserId && (
+                <p className="text-sm text-darkgray/70">Pastikan akun yang akan dijadikan admin sudah benar</p>
+              )}
+
 
               <div className="flex justify-end gap-2">
                 <button

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu";
-import Cookies from "js-cookie";
-import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../../api/axiosClient"; 
 
 const DashboardUser = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -10,7 +9,8 @@ const DashboardUser = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const userId = Cookies.get('userId');
+  
+  const userId = sessionStorage.getItem('userId');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,16 +20,17 @@ const DashboardUser = () => {
         return;
       }
       try {
-        // REFACTOR: Menggunakan axiosClient untuk kedua panggilan
         const [userRes, ordersRes] = await Promise.all([
-          axiosClient.get(`/users/${userId}`),
-          axiosClient.get(`/orders/user/${userId}`),
+          // FIX: Mengganti endpoint ke /users/profile
+          axiosClient.get(`/users/profile`), 
+          // FIX: Panggil endpoint orders dengan filter user_id
+          axiosClient.get(`/orders`, { params: { user_id: userId } }), 
         ]);
 
-        const userData = userRes.data;
-        const ordersData = ordersRes.data;
+        const userData = userRes.data.user;
+        const ordersData = ordersRes.data.orders;
 
-        setUserData(userData); // Tidak perlu cek res.ok karena Axios melempar error untuk non-2xx
+        setUserData(userData);
 
         if (Array.isArray(ordersData)) {
           setOrders(ordersData);
@@ -38,8 +39,7 @@ const DashboardUser = () => {
         }
 
       } catch (err) {
-        // REFACTOR: Error handling untuk Axios
-        const message = err.response?.data?.message || "Terjadi kesalahan jaringan.";
+        const message = err.response?.data?.message || "Gagal mengambil data. Silakan coba login ulang.";
         setError(message);
         console.error("Error fetching data:", err);
       } finally {
@@ -107,23 +107,25 @@ const DashboardUser = () => {
           )}
 
           {/* Sambutan & Ringkasan Profil */}
-          <div className="bg-purewhite rounded-lg shadow-lg p-8 mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-darkgray mb-2">
-              Selamat Datang, {userData?.first_name}!
-            </h1>
-            <p className="text-darkgray mb-4">
-              Dashboard ini menyediakan ringkasan aktivitas akun Anda.
-            </p>
-            <div className="border-t border-lightmauve pt-4">
-              <h2 className="text-xl font-semibold text-darkgray mb-2">Informasi Akun</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-darkgray">
-                <p><strong>Nama Lengkap:</strong> {userData?.first_name} {userData?.last_name}</p>
-                <p><strong>Username:</strong> {userData?.username}</p>
-                <p><strong>Email:</strong> {userData?.email}</p>
-                <p><strong>Alamat:</strong> {userData?.address || "Belum diisi"}</p>
+          {userData && (
+              <div className="bg-purewhite rounded-lg shadow-lg p-8 mb-8">
+                <h1 className="text-3xl md:text-4xl font-bold text-darkgray mb-2">
+                  Selamat Datang, {userData?.first_name}!
+                </h1>
+                <p className="text-darkgray mb-4">
+                  Dashboard ini menyediakan ringkasan aktivitas akun Anda.
+                </p>
+                <div className="border-t border-lightmauve pt-4">
+                  <h2 className="text-xl font-semibold text-darkgray mb-2">Informasi Akun</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-darkgray">
+                    <p><strong>Nama Lengkap:</strong> {userData?.first_name} {userData?.last_name}</p>
+                    <p><strong>Username:</strong> {userData?.username}</p>
+                    <p><strong>Email:</strong> {userData?.email}</p>
+                    <p><strong>Alamat:</strong> {userData?.address || "Belum diisi"}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+          )}
           
           {/* Riwayat Pesanan Terbaru */}
           <div className="bg-purewhite rounded-lg shadow-lg p-8">

@@ -1,28 +1,21 @@
-const express = require("express");
-const Category = require("../models/category");
+// server/routes/categoryRoutes.js
+const express = require('express');
 const router = express.Router();
+const categoryController = require('../controllers/categoryController');
+const { authenticate, isAdmin } = require('../middlewares/auth');
 
-router.get("/categories", async (req, res) => {
-  try {
-    const categories = await Category.findAll();
-    res.json(categories);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching categories", error: err.message });
-  }
-});
+// PUBLIC/USER ROUTES
+// GET /api/categories - Ambil semua kategori
+router.get('/', categoryController.getAllCategories);
 
-router.post("/categories", async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name) {
-      return res.status(400).json({ message: "Nama kategori wajib diisi." });
-    }
+// ADMIN ROUTES (Dilindungi oleh authenticate dan isAdmin)
+// POST /api/categories - Buat kategori baru
+router.post('/', authenticate, isAdmin, categoryController.createCategory);
 
-    const newCategory = await Category.create({ name });
-    res.status(201).json({ message: "Kategori berhasil dibuat!", category: newCategory });
-  } catch (err) {
-    res.status(500).json({ message: "Gagal membuat kategori", error: err.message });
-  }
-});
+// PUT /api/categories/:id - Update kategori
+router.put('/:id', authenticate, isAdmin, categoryController.updateCategory);
+
+// DELETE /api/categories/:id - Hapus kategori
+router.delete('/:id', authenticate, isAdmin, categoryController.deleteCategory);
 
 module.exports = router;

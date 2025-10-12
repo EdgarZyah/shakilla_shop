@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu";
-import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
-import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../../api/axiosClient"; 
 
 const EditProfile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -12,7 +11,7 @@ const EditProfile = () => {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState(null);
 
-  const userId = Cookies.get('userId');
+  const userId = sessionStorage.getItem('userId');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,14 +26,13 @@ const EditProfile = () => {
     }
     setLoading(true);
     try {
-      // REFACTOR: Menggunakan axiosClient.get
-      const response = await axiosClient.get(`/users/${userId}`);
-      const data = response.data;
+      // FIX: Panggil endpoint profil yang benar
+      const response = await axiosClient.get(`/users/profile`);
+      const data = response.data.user;
 
       setFormData(data);
       setError(null);
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
       const message = err.response?.data?.message || "Gagal mengambil data profil.";
       setError(message);
     } finally {
@@ -52,16 +50,25 @@ const EditProfile = () => {
     setLoading(true);
     setStatus(null);
 
+    // Ambil data yang dikirim, menggunakan nama field yang benar sesuai backend (camelCase)
+    const payload = {
+        firstName: formData.first_name,
+        lastName: formData.last_name,
+        username: formData.username,
+        email: formData.email,
+        address: formData.address,
+        zipCode: formData.zip_code,
+    }
+
     try {
-      // REFACTOR: Menggunakan axiosClient.put. Axios otomatis handle body JSON dan headers.
-      await axiosClient.put(`/users/${userId}`, formData);
+      // FIX: Panggil endpoint update profil yang benar
+      await axiosClient.put(`/users/profile`, payload);
       
       setStatus({ type: "success", message: "Profil berhasil diperbarui!" });
       setTimeout(() => {
           navigate("/user/profile");
       }, 1500);
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
       const message = err.response?.data?.message || "Gagal memperbarui profil.";
       setStatus({ type: "error", message: message });
       console.error("Error updating user data:", err);

@@ -1,9 +1,9 @@
+// shakilla_shop/client/src/layouts/navbar.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
 import CartDropdown from "../components/CartDropdown";
 import logo from "../assets/logo-transparent.png";
-import axiosClient from "../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../api/axiosClient";
 
 const Navbar = ({ key }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -15,23 +15,23 @@ const Navbar = ({ key }) => {
   const cartRef = useRef(null);
   const navigate = useNavigate();
 
-  const userRole = Cookies.get("userRole");
-  const userId = Cookies.get("userId");
+  const userRole = sessionStorage.getItem("userRole");
+  const userId = sessionStorage.getItem("userId");
   const isLoggedIn = !!userRole;
 
   const fetchCartData = async () => {
-    if (!userId) {
+    if (!userId || userRole !== 'user') { // Hanya fetch jika user logged in & role 'user'
       setCartItems([]);
       setLoadingCart(false);
       return;
     }
     try {
-      // REFACTOR: Menggunakan axiosClient.get
-      const response = await axiosClient.get(`/carts/user/${userId}`);
-      const data = response.data;
+      // FIX 1: Menggunakan endpoint yang benar: GET /api/cart
+      const response = await axiosClient.get(`/cart`);
       
-      if (data?.CartItems) {
-        setCartItems(data.CartItems);
+      // FIX 2: Asumsi respons /cart mengembalikan data di properti .items
+      if (response.data?.items) {
+        setCartItems(response.data.items);
       } else {
         setCartItems([]);
       }
@@ -43,6 +43,7 @@ const Navbar = ({ key }) => {
     }
   };
 
+  // Efek berjalan saat userId berubah atau key berubah (dipicu dari ProductPage)
   useEffect(() => {
     fetchCartData();
   }, [userId, key]);
@@ -51,7 +52,6 @@ const Navbar = ({ key }) => {
     if (cartRef.current && !cartRef.current.contains(event.target)) {
       setIsCartOpen(false);
     }
-    // Logika penutupan menu mobile
     if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
       setIsMobileMenuOpen(false);
     }
@@ -76,14 +76,25 @@ const Navbar = ({ key }) => {
 
   const removeItem = async (itemId) => {
     try {
-      // REFACTOR: Menggunakan axiosClient.delete. Axios otomatis handle method DELETE dan credentials.
-      await axiosClient.delete(`/carts/item/${itemId}`);
-
-      setCartItems(prev => prev.filter(item => item.id !== itemId));
+      await axiosClient.delete(`/cart/item/${itemId}`); 
+      
+      // FIX 3: Setelah berhasil hapus, panggil fetchCartData untuk me-refresh
+      await fetchCartData(); 
+      
     } catch (err) {
       console.error("Error removing item:", err);
     }
   };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("userRole");
+    sessionStorage.removeItem("userId");
+    
+    navigate("/login", { replace: true });
+    window.location.reload(); 
+  };
+
 
   const CartIcon = ({ itemCount }) => (
     <div className="relative">
@@ -169,6 +180,12 @@ const Navbar = ({ key }) => {
                 >
                   Dashboard
                 </Link>
+                <button 
+                    onClick={handleLogout}
+                    className="hidden md:block px-4 py-2 text-sm font-semibold text-purewhite bg-elegantburgundy rounded-full hover:bg-softpink"
+                >
+                  Logout
+                </button>
               </>
             ) : (
               <>
@@ -182,6 +199,7 @@ const Navbar = ({ key }) => {
             )}
 
             <div className="relative" ref={cartRef}>
+              {userRole === 'user' && ( // Hanya tampilkan icon cart untuk role 'user'
               <button
                 onClick={toggleCart}
                 className="p-2 rounded-full text-darkgray hover:bg-lightmauve focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-elegantburgundy transition-colors duration-300"
@@ -189,6 +207,8 @@ const Navbar = ({ key }) => {
               >
                 <CartIcon itemCount={cartItems.length} />
               </button>
+              )}
+              {/* CartDropdown dipanggil terlepas dari role, tetapi hanya muncul jika isCartOpen true */}
               <CartDropdown
                 cartItems={cartItems}
                 onRemoveItem={removeItem}
@@ -211,8 +231,7 @@ const Navbar = ({ key }) => {
 
       {/* Mobile Menu Panel */}
       <div
-        ref={mobileMenuRef}
-        className={`absolute md:hidden bg-purewhite w-full shadow-lg overflow-hidden transition-all duration-300 ease-in-out z-[49] ${ // z-index diubah
+        className={`absolute md:hidden bg-purewhite w-full shadow-lg overflow-hidden transition-all duration-300 ease-in-out z-[49] ${
           isMobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}
         id="mobile-menu"
@@ -232,6 +251,12 @@ const Navbar = ({ key }) => {
               <Link to={userRole === "admin" ? "/admin/dashboard" : "/user/dashboard"} onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300">
                 Dashboard
               </Link>
+              <button
+                onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}}
+                className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition-colors"
+              >
+                Logout
+              </button>
             </>
           ) : (
             <>

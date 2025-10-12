@@ -14,9 +14,9 @@
     "dialect": "mysql"
   },
   "production": {
-    "username": "root",
-    "password": null,
-    "database": "shakilla_shop_production",
+    "username": "loge1722_shakilla",
+    "password": "banyumas123",
+    "database": "loge1722_shakilla_shop",
     "host": "localhost",
     "dialect": "mysql"
   }

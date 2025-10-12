@@ -3,30 +3,28 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import Navbar from "../layouts/navbar";
 import Footer from "../layouts/footer";
-import Cookies from "js-cookie";
-import axiosClient from "../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../api/axiosClient";
+import { getCleanedImageUrl } from "../utils/imageHelper"; // ✅ gunakan helper
 
 const ProductPage = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState("S");
   const [quantity, setQuantity] = useState(1);
   const [cartStatus, setCartStatus] = useState(null);
-  
-  const [cartKey, setCartKey] = useState(0); // State untuk memicu render ulang Navbar
+  const [cartKey, setCartKey] = useState(0);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        // REFACTOR: Menggunakan axiosClient.get
         const res = await axiosClient.get(`/products/${id}`);
-        const data = res.data;
+        const data = res.data.product;
 
         let imageUrls = [];
+        // 🖼️ Parse image_url yang mungkin berupa JSON string
         if (data.image_url && typeof data.image_url === "string") {
           try {
             imageUrls = JSON.parse(data.image_url);
@@ -37,15 +35,17 @@ const ProductPage = () => {
           imageUrls = data.image_url;
         }
 
-        const allImages = data.thumbnail_url
-          ? [data.thumbnail_url, ...imageUrls]
-          : imageUrls;
+        // ✅ Gunakan imageHelper untuk setiap path gambar
+        const thumbnailPath = data.thumbnail_url ? [data.thumbnail_url] : [];
+        const allImagePaths = [...thumbnailPath, ...imageUrls];
+
+        const allImages = allImagePaths.map((path) => getCleanedImageUrl(path));
 
         setProduct({ ...data, images: allImages });
         setLoading(false);
       } catch (err) {
-        // REFACTOR: Error handling untuk Axios
-        const message = err.response?.data?.message || "Gagal mengambil data produk.";
+        const message =
+          err.response?.data?.message || "Gagal mengambil data produk.";
         setError(message);
         setLoading(false);
       }
@@ -54,9 +54,12 @@ const ProductPage = () => {
     fetchProduct();
   }, [id]);
 
+  // 🛒 Tambah ke keranjang
   const handleAddToCart = async () => {
-    const userId = Cookies.get("userId");
-    if (!userId) {
+    const isLoggedIn = !!sessionStorage.getItem("accessToken");
+    const userRole = sessionStorage.getItem("userRole");
+
+    if (!isLoggedIn) {
       setCartStatus({
         type: "error",
         message: "Anda harus login untuk menambahkan produk ke keranjang.",
@@ -64,31 +67,38 @@ const ProductPage = () => {
       return;
     }
 
+    if (userRole !== "user") {
+      setCartStatus({
+        type: "error",
+        message: `Hanya pengguna dengan role 'User' yang diizinkan berbelanja. Role Anda saat ini: ${userRole.toUpperCase()}.`,
+      });
+      return;
+    }
+
     setCartStatus({ type: "loading", message: "Menambahkan ke keranjang..." });
 
     try {
-      // REFACTOR: Menggunakan axiosClient.post. Axios otomatis handle body JSON.
-      const res = await axiosClient.post("/carts", {
+      const res = await axiosClient.post("/cart", {
         product_id: product.id,
         quantity: quantity,
-        size: selectedSize, 
+        size: selectedSize,
       });
 
       const data = res.data;
 
       setCartStatus({
         type: "success",
-        message: data?.message || "Produk berhasil ditambahkan ke keranjang!",
+        message:
+          data?.message || "Produk berhasil ditambahkan ke keranjang!",
       });
-      
-      // Memperbarui state `cartKey` setelah jeda 2 detik
+
       setTimeout(() => {
-        setCartKey(prev => prev + 1);
+        setCartKey((prev) => prev + 1);
         setCartStatus(null);
       }, 2000);
     } catch (err) {
-      // REFACTOR: Error handling untuk Axios
-      const message = err.response?.data?.message || "Terjadi kesalahan jaringan.";
+      const message =
+        err.response?.data?.message || "Terjadi kesalahan jaringan.";
       setCartStatus({
         type: "error",
         message: message,
@@ -97,6 +107,7 @@ const ProductPage = () => {
     }
   };
 
+  // 💫 Tampilan Loading
   if (loading) {
     return (
       <div className="flex min-h-screen bg-lightmauve items-center justify-center">
@@ -110,13 +121,12 @@ const ProductPage = () => {
     );
   }
 
+  // ❌ Error Page
   if (error) {
     return (
       <div className="flex min-h-screen bg-lightmauve items-center justify-center">
         <div className="text-center p-8 bg-purewhite rounded-xl shadow-lg max-w-md">
-          <h1 className="text-2xl font-bold text-elegantburgundy mb-2">
-            Error
-          </h1>
+          <h1 className="text-2xl font-bold text-elegantburgundy mb-2">Error</h1>
           <p className="text-darkgray mb-4">{error}</p>
           <Link
             to="/"
@@ -129,6 +139,7 @@ const ProductPage = () => {
     );
   }
 
+  // 🚫 Produk tidak ditemukan
   if (!product) {
     return (
       <div className="flex min-h-screen bg-lightmauve items-center justify-center">
@@ -155,7 +166,7 @@ const ProductPage = () => {
       <Navbar key={cartKey} />
       <div className="min-h-screen bg-lightmauve content-center">
         <div className="bg-purewhite rounded-2xl shadow-lg max-w-6xl mx-auto p-8 flex flex-col md:flex-row gap-10">
-          {/* Left - Product Images */}
+          {/* 🖼️ Gambar Produk */}
           <div className="md:w-1/2">
             <img
               src={product.images[selectedImageIndex]}
@@ -179,7 +190,7 @@ const ProductPage = () => {
             </div>
           </div>
 
-          {/* Right - Product Details */}
+          {/* 🛍️ Detail Produk */}
           <div className="md:w-1/2 flex flex-col justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-3 text-darkgray">
@@ -192,7 +203,7 @@ const ProductPage = () => {
                 {product.description}
               </p>
 
-              {/* Size Selection */}
+              {/* Pilihan Ukuran */}
               <div className="mb-6">
                 <h3 className="font-semibold mb-2 text-darkgray">
                   Pilih Ukuran
@@ -215,7 +226,7 @@ const ProductPage = () => {
                 </div>
               </div>
 
-              {/* Quantity Input */}
+              {/* Jumlah */}
               <div className="mb-6 flex items-center gap-4">
                 <label
                   className="font-semibold text-darkgray"
@@ -235,7 +246,7 @@ const ProductPage = () => {
                 />
               </div>
 
-              {/* Cart Status */}
+              {/* Status */}
               {cartStatus && (
                 <div
                   className={`p-3 rounded-lg mb-4 text-sm ${
@@ -251,7 +262,7 @@ const ProductPage = () => {
               )}
             </div>
 
-            {/* Add to Cart Button */}
+            {/* Tombol Keranjang */}
             <button
               onClick={handleAddToCart}
               disabled={cartStatus?.type === "loading"}
@@ -259,7 +270,7 @@ const ProductPage = () => {
             >
               {cartStatus?.type === "loading"
                 ? "Menambahkan..."
-                : "Masukan Keranjang"}
+                : "Masukkan ke Keranjang"}
             </button>
           </div>
         </div>

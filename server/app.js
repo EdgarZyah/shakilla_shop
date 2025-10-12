@@ -1,82 +1,59 @@
-// shakilla_shop/server/app.js
-
-// shakilla_shop/server/app.js
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const cookieParser = require("cookie-parser");
-const sequelize = require("./config/dbconfig");
 const path = require("path");
-
-// Import routes
-const authRoutes = require("./routes/authRoutes");
-const cartRoutes = require("./routes/cartRoutes");
-const cartItemRoutes = require("./routes/cartItemRoutes");
-const categoryRoutes = require("./routes/categoryRoutes");
-const messageRoutes = require("./routes/messageRoutes");
-const orderRoutes = require("./routes/orderRoutes");
-const orderItemRoutes = require("./routes/orderItemRoutes");
-const paymentRoutes = require("./routes/paymentRoutes");
-const productRoutes = require("./routes/productRoutes");
-const shippingRoutes = require("./routes/shippingRoutes");
-const userRoutes = require("./routes/userRoutes");
-
 const app = express();
+const PORT = process.env.PORT || 3001;
 
-app.set("trust proxy", 1);
+// Import Routes
+const authRoutes = require("./routes/authRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
+const productRoutes = require("./routes/productRoutes");
+const cartRoutes = require("./routes/cartRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const userRoutes = require("./routes/userRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+
+// Database Connection
+const db = require("./models");
+db.sequelize
+  .authenticate()
+  .then(() => console.log("✅ Database connected successfully!"))
+  .catch((err) => console.error("❌ Database connection error:", err.message));
+
+// ================= CORS =================
+app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
-app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 
-// Tambahkan middleware untuk menyajikan file statis dari folder "uploads" di sisi client
-app.use('/uploads', express.static(path.join(__dirname, '../client/uploads')));
-
+// ================= STATIC FILES =================
 app.use(
-  cors({
-    origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  "/uploads/products",
+  express.static(path.join(__dirname, "uploads", "products"))
 );
 
-app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
+app.use(
+  "/uploads/payments",
+  express.static(path.join(__dirname, "uploads", "payments"))
+);
 
-sequelize
-  .authenticate()
-  .then(() => console.log("Koneksi database sukses!"))
-  .catch((err) => console.error("Gagal koneksi database:", err));
+// Root Test Route
+app.get("/", (req, res) => {
+  res.send("🛍️ Shakilla Shop Backend is Running!");
+});
 
-// Routes
+// API ROUTES
 app.use("/api/auth", authRoutes);
-app.use("/api", cartRoutes);
-app.use("/api", cartItemRoutes);
-app.use("/api", categoryRoutes);
-app.use("/api", messageRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api", orderItemRoutes);
-app.use("/api", paymentRoutes);
-app.use("/api", productRoutes);
-app.use("/api", shippingRoutes);
-app.use("/api", userRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/messages", messageRoutes);
 
-app.get("/", (_req, res) => {
-  res.send("Server berjalan!");
-});
-
-app.use((req, res, next) => {
-  if (res.headersSent) return next();
-  res.status(404).json({ message: "Error 404 Not Found." });
-});
-
-app.use((err, _req, res, _next) => {
-  console.error("Unhandled error:", err);
-  res.status(err.status || 500).json({
-    message: "Internal Server Error",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
-});
-
-const PORT = process.env.PORT || 3001;
+// Server Listener
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

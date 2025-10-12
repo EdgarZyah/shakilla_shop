@@ -1,20 +1,44 @@
-// server/models/cartItem.js
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/dbconfig");
-
-const CartItem = sequelize.define(
-  "CartItem",
-  {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    cart_id: DataTypes.INTEGER,
-    product_id: DataTypes.INTEGER,
-    quantity: DataTypes.INTEGER,
-    size: DataTypes.STRING,
-  },
-  {
-    tableName: "cart_items",
-    timestamps: false,
+// server/models/cartitem.js
+'use strict';
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class CartItem extends Model {
+    static associate(models) {
+      CartItem.belongsTo(models.Cart, { foreignKey: 'cart_id', as: 'cart' });
+      CartItem.belongsTo(models.Product, { foreignKey: 'product_id', as: 'product' });
+    }
   }
-);
-
-module.exports = CartItem;
+  CartItem.init({
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+      allowNull: false,
+    },
+    cart_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    product_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    quantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+    },
+    // FIX: Mendefinisikan field 'size' secara eksplisit
+    size: { 
+      type: DataTypes.STRING,
+      allowNull: true, // Biarkan NULL jika tidak ada size, tapi defaultnya ada dari frontend
+    },
+  }, {
+    sequelize,
+    modelName: 'CartItem',
+    tableName: 'cart_items',
+    timestamps: false, 
+    underscored: true,
+  });
+  return CartItem;
+};

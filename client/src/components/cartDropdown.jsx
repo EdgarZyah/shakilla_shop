@@ -1,20 +1,23 @@
-// shakilla_shop/client/src/components/CartDropdown.jsx
-
+//client\src\components\cartDropdown.jsx
 import React from "react";
 import { Link } from "react-router-dom";
+import { getCleanedImageUrl } from "../utils/imageHelper";
 
 const CartDropdown = ({ cartItems, onRemoveItem, isCartOpen, onToggle }) => {
-  const subtotal = cartItems.reduce(
-    (total, item) => total + (item.Product?.price * item.quantity),
-    0
-  );
+  const subtotal = cartItems.reduce((total, item) => {
+    const price = item.product?.price ? parseFloat(item.product.price) : 0;
+    const qty = item.quantity ? parseInt(item.quantity) : 0;
+    return total + price * qty;
+  }, 0);
 
   return (
     <div
-      className={`
-        absolute -right-13 mt-4 w-80 bg-purewhite rounded-xl shadow-2xl z-50 overflow-hidden transform transition-all duration-300 ease-out
-        ${isCartOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"}
-      `}
+      className={`absolute right-0 mt-4 w-80 bg-purewhite rounded-xl shadow-2xl z-50 overflow-hidden transform transition-all duration-300 ease-out
+        ${
+          isCartOpen
+            ? "opacity-100 scale-100 translate-y-0"
+            : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+        }`}
     >
       <div className="p-4 border-b font-semibold text-darkgray bg-lightmauve">
         Keranjang Belanja ({cartItems.length} item)
@@ -28,21 +31,27 @@ const CartDropdown = ({ cartItems, onRemoveItem, isCartOpen, onToggle }) => {
             {cartItems.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between p-3 bg-lightmauve transition-colors"
+                className="flex items-center justify-between p-3 bg-lightmauve hover:bg-softpink transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <img src={item.Product?.thumbnail_url} alt={item.Product?.name} className="h-10 w-10 object-cover rounded" />
+                  <img
+                    src={getCleanedImageUrl(item.product?.thumbnail_url)}
+                    alt={item.product?.name}
+                    className="h-10 w-10 object-cover rounded"
+                  />
                   <div>
-                    <p className="font-semibold text-darkgray">{item.Product?.name}</p>
+                    <p className="font-semibold text-darkgray">
+                      {item.product?.name}
+                    </p>
                     <p className="text-sm text-darkgray">
-                        Qty: {item.quantity} | Ukuran: {item.size || 'N/A'}
+                      Qty: {item.quantity || 1} | Ukuran: {item.size || "N/A"}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => onRemoveItem(item.id)}
                   className="text-elegantburgundy hover:text-softpink text-sm font-medium transition-colors"
-                  aria-label={`Hapus ${item.Product?.name} dari keranjang`}
+                  aria-label={`Hapus ${item.product?.name} dari keranjang`}
                 >
                   Hapus
                 </button>
@@ -52,7 +61,7 @@ const CartDropdown = ({ cartItems, onRemoveItem, isCartOpen, onToggle }) => {
           <div className="p-4 bg-lightmauve">
             <div className="flex justify-between font-semibold text-darkgray mb-3">
               <span>Subtotal:</span>
-              <span>Rp {subtotal.toLocaleString('id-ID')}</span>
+              <span>Rp {subtotal.toLocaleString("id-ID")}</span>
             </div>
             <Link
               to="/cart"

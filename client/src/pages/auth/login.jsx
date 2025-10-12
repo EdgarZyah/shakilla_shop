@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from 'js-cookie';
 import bgPink from "../../assets/bg-pink1.png";
-import axiosClient from "../../api/axiosClient"; // <-- REFACTOR: Import axiosClient
+import axiosClient from "../../api/axiosClient"; 
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -12,13 +12,14 @@ const Login = () => {
 
   const navigate = useNavigate();
 
-  // Periksa status login saat komponen dimuat
+  // Periksa status login saat komponen dimuat (digunakan untuk auto-redirect jika sudah login)
   useEffect(() => {
-    const userRole = Cookies.get('userRole');
+    // Membaca dari sessionStorage
+    const userRole = sessionStorage.getItem('userRole'); 
     if (userRole) {
       if (userRole === 'admin') {
         navigate('/admin/dashboard', { replace: true });
-      } else {
+      } else if (userRole === 'user') {
         navigate('/user/dashboard', { replace: true });
       }
     }
@@ -30,20 +31,26 @@ const Login = () => {
     e.preventDefault();
     setLoading(true); setError(""); setSuccess("");
     try {
-      // REFACTOR: Menggunakan axiosClient.post. Axios otomatis handle JSON.stringify dan headers.
       const res = await axiosClient.post("/auth/login", form);
       const data = res.data; 
       
+      // --- PERBAIKAN UTAMA: Simpan data otentikasi ke sessionStorage ---
+      sessionStorage.setItem("accessToken", data.token);
+      sessionStorage.setItem("userRole", data.user.role);
+      sessionStorage.setItem("userId", data.user.id);
+      
       setSuccess("Login berhasil");
+      
+      // Logika Redirection Berdasarkan Role
       if (data.user.role === 'admin') {
-        navigate("/admin/dashboard");
+        navigate("/admin/dashboard", { replace: true });
       } else if (data.user.role === 'user') {
-        navigate("/user/dashboard");
+        navigate("/user/dashboard", { replace: true });
       } else {
-        navigate("/");
+        navigate("/", { replace: true });
       }
+      
     } catch (err) {
-      // REFACTOR: Menangani error dari Axios (non-2xx status code)
       const message = err.response?.data?.message || "Terjadi kesalahan jaringan";
       setError(message);
     } finally {
@@ -88,6 +95,7 @@ const Login = () => {
             </div>
 
             <button
+              type="submit"
               disabled={loading}
               className="w-full bg-elegantburgundy text-purewhite py-3 rounded-lg font-semibold hover:bg-softpink transition"
             >
