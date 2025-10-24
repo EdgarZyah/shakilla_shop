@@ -20,6 +20,7 @@ const ListProduct = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [inputValue, setInputValue] = useState(""); // <-- PERUBAHAN 1: State untuk input
   const itemsPerPage = 10;
 
   // ================== Fetch Produk ==================
@@ -108,6 +109,14 @@ const ListProduct = () => {
 
   const handlePageChange = (page) => setCurrentPage(page);
 
+  // --- PERUBAHAN 2: Handler untuk form submit ---
+  const handleSearchSubmit = (e) => {
+    e.preventDefault(); // Mencegah halaman refresh
+    setSearchTerm(inputValue); // Terapkan nilai input ke state filter
+    setCurrentPage(1); // Reset halaman ke 1
+  };
+  // ---------------------------------------------
+
   // ================== Pagination ==================
   const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
   const currentProducts = filteredAndSortedProducts.slice(
@@ -122,6 +131,16 @@ const ListProduct = () => {
 
   // ================== Kolom Tabel ==================
   const productTableColumns = [
+    // --- PERUBAHAN 3: Kolom "NO" ditambahkan ---
+    {
+      key: "no",
+      label: "NO",
+      sortable: false,
+      render: (row, rowIndex) => {
+        return (currentPage - 1) * itemsPerPage + rowIndex + 1;
+      },
+    },
+    // ------------------------------------------
     {
       key: "id",
       label: "ID",
@@ -214,8 +233,10 @@ const ListProduct = () => {
         {/* Filter dan Search */}
         <div className="bg-purewhite rounded-lg shadow-sm border border-lightmauve p-4 md:p-6 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
+            
+            {/* --- PERUBAHAN 4: Modifikasi Search --- */}
             {/* Search */}
-            <div className="flex-1">
+            <form className="flex-1" onSubmit={handleSearchSubmit}>
               <label
                 htmlFor="search"
                 className="block text-sm font-medium text-darkgray mb-2"
@@ -226,14 +247,13 @@ const ListProduct = () => {
                 id="search"
                 type="text"
                 placeholder="Cari berdasarkan nama produk..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
                 className="w-full pl-4 pr-4 py-2 border border-lightmauve rounded-lg focus:ring-2 focus:ring-elegantburgundy focus:border-elegantburgundy transition-colors"
               />
-            </div>
+            </form>
+            {/* ------------------------------------ */}
+
 
             {/* Filter Kategori */}
             <div className="sm:w-48">

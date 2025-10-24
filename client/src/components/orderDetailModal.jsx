@@ -71,6 +71,10 @@ const OrderDetailModal = ({
   modalLoading,
   updateStatus,
   userRole,
+  // --- TAMBAHAN PROPS ---
+  onShipOrder, // Fungsi untuk submit resi
+  shipStatus, // Status (loading/error) dari submit resi
+  // --- AKHIR TAMBAHAN PROPS ---
 }) => {
   if (!isOpen || !order) return null;
 
@@ -81,9 +85,15 @@ const OrderDetailModal = ({
 
   const isCancelled = currentOrderStatus === "dibatalkan";
   const isAwaitingVerification = currentOrderStatus === "menunggu verifikasi";
+  const isProcessed = currentOrderStatus === "diproses"; // Status "diproses"
   const isOrderFinal = ["selesai", "dibatalkan"].includes(currentOrderStatus);
 
   const [newStatus, setNewStatus] = useState(currentOrderStatus);
+
+  // --- TAMBAHAN STATE UNTUK RESI ---
+  const [receiptNumber, setReceiptNumber] = useState("");
+  const [receiptFile, setReceiptFile] = useState(null);
+  // --- AKHIR TAMBAHAN STATE ---
 
   useEffect(() => {
     setNewStatus(currentOrderStatus);
@@ -106,7 +116,6 @@ const OrderDetailModal = ({
       { value: "diproses", label: "Sedang Diproses" },
       { value: "dikirim", label: "Dalam Pengiriman" },
       { value: "diterima", label: "Pesanan Diterima" },
-      { value: "selesai", label: "Selesai" },
     ];
 
     nextStatuses.forEach((opt) => {
@@ -118,6 +127,21 @@ const OrderDetailModal = ({
 
   const availableStatusOptions = getAvailableStatusOptions();
 
+  // --- TAMBAHAN: Handle submit resi ---
+  const handleShipSubmit = (e) => {
+    e.preventDefault();
+    if (onShipOrder) {
+      const formData = new FormData();
+      formData.append("shipping_receipt_number", receiptNumber);
+      if (receiptFile) {
+        // Nama field harus cocok dengan multer: 'shipping_receipt_file'
+        formData.append("shipping_receipt_file", receiptFile);
+      }
+      onShipOrder(order.id, formData);
+    }
+  };
+  // --- AKHIR TAMBAHAN ---
+
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center p-4 z-50 overflow-y-auto">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
@@ -126,7 +150,10 @@ const OrderDetailModal = ({
           <h3 className="text-2xl font-bold text-darkgray">
             Detail Pesanan #{order.id}
           </h3>
-          <button onClick={onClose} className="text-darkgray hover:text-red-500">
+          <button
+            onClick={onClose}
+            className="text-darkgray hover:text-red-500"
+          >
             ✕
           </button>
         </div>
@@ -147,36 +174,13 @@ const OrderDetailModal = ({
                 </h4>
                 <p className="text-darkgray font-medium">Pembeli:</p>
                 <p className="text-darkgray">
-                  {user ? `${user.first_name || ""} ${user.last_name || ""}` : "N/A"}
+                  {user
+                    ? `${user.first_name || ""} ${user.last_name || ""}`
+                    : "N/A"}
                 </p>
-                <p className="text-sm text-darkgray/70">{user?.email || "N/A"}</p>
-              </div>
-
-              {/* RINGKASAN PESANAN */}
-              <div>
-                <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
-                  Ringkasan Pesanan
-                </h4>
-                <div className="flex justify-between font-medium text-darkgray mt-2">
-                  <span>Tanggal Pesanan:</span>
-                  <span>{formatDate(order.created_at || order.createdAt)}</span>
-                </div>
-                <div className="flex justify-between font-medium text-darkgray mt-2">
-                  <span>Total Harga:</span>
-                  <span>
-                    Rp {parseFloat(order.total_price || 0).toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div className="mt-2">
-                  <p className="text-darkgray font-medium">Status Pesanan:</p>
-                  <span
-                    className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadge(
-                      currentOrderStatus
-                    )}`}
-                  >
-                    {formatStatus(currentOrderStatus)}
-                  </span>
-                </div>
+                <p className="text-sm text-darkgray/70">
+                  {user?.email || "N/A"}
+                </p>
               </div>
 
               {/* ITEM PESANAN */}
@@ -184,7 +188,7 @@ const OrderDetailModal = ({
                 <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
                   Item Pesanan
                 </h4>
-                <ul className="divide-y divide-lightmauve max-h-40 overflow-y-auto">
+                <ul className="divide-y divide-lightmauve max-h-40 overflow-y-auto pr-4">
                   {orderItems.map((item) => (
                     <li key={item.id} className="py-3 flex justify-between">
                       <div>
@@ -203,11 +207,57 @@ const OrderDetailModal = ({
                   ))}
                 </ul>
               </div>
+              {/* RINGKASAN PESANAN */}
+              <div>
+                <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
+                  Ringkasan Pesanan
+                </h4>
+                <div className="flex justify-between font-medium text-darkgray mt-2">
+                  <span>Tanggal Pesanan:</span>
+                  <span>{formatDate(order.created_at || order.createdAt)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-darkgray mt-1">
+                  <span>Subtotal (Total Harga):</span>
+                  <span>
+                    Rp{" "}
+                    {parseFloat(order.total_price || 0).toLocaleString("id-ID")}
+                  </span>
+                </div>
+                {/* --- TAMBAHAN: Detail Biaya Pengiriman & Grand Total --- */}
+                <div className="flex justify-between text-sm text-darkgray mt-1">
+                  <span>Biaya Ongkir:</span>
+                  <span>
+                    Rp{" "}
+                    {parseFloat(order.shipping_cost || 0).toLocaleString(
+                      "id-ID"
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold text-darkgray mt-1 text-lg border-t pt-1">
+                  <span>Total:</span>
+                  <span>
+                    Rp{" "}
+                    {parseFloat(order.grand_total || 0).toLocaleString("id-ID")}
+                  </span>
+                </div>
+                
+              </div>
             </div>
 
             {/* === KANAN === */}
             <div className="flex flex-col space-y-6">
               {/* INFO PENGIRIMAN */}
+              {/* --- AKHIR TAMBAHAN --- */}
+                <div className="mt-2">
+                  <p className="text-darkgray font-medium">Status Pesanan:</p>
+                  <span
+                    className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadge(
+                      currentOrderStatus
+                    )}`}
+                  >
+                    {formatStatus(currentOrderStatus)}
+                  </span>
+                </div>
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
                   Informasi Pengiriman
@@ -218,6 +268,30 @@ const OrderDetailModal = ({
                       ? `Menggunakan Alamat Profil: ${order.User.address}`
                       : "Alamat belum tercatat")}
                 </p>
+                <p className="text-sm text-darkgray/70">
+                  Metode: {order.shipping_method || "N/A"}
+                </p>
+
+                {/* --- TAMBAHAN: Tampilkan Info Resi Jika Ada --- */}
+                {order.shipping_receipt_number && (
+                  <div className="mt-2 p-2 bg-lightmauve rounded-md">
+                    <p className="text-sm font-medium text-darkgray">
+                      No. Resi: {order.shipping_receipt_number}
+                    </p>
+                    {order.shipping_receipt_url && (
+                      <a
+                        href={buildImageUrl(order.shipping_receipt_url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-elegantburgundy hover:underline"
+                      >
+                        Lihat Foto Resi
+                      </a>
+                    )}
+                  </div>
+                )}
+                {/* --- AKHIR TAMBAHAN --- */}
+
                 {order.shipped_at && (
                   <p className="text-sm text-darkgray/70">
                     Dikirim: {formatDate(order.shipped_at)}
@@ -257,15 +331,6 @@ const OrderDetailModal = ({
                     >
                       Lihat Bukti Pembayaran
                     </a>
-                    <img
-                      src={buildImageUrl(payment.payment_proof_url)}
-                      alt="Bukti Pembayaran"
-                      className="max-w-full h-auto rounded-md shadow"
-                      onError={(e) =>
-                        (e.target.src =
-                          "https://via.placeholder.com/200?text=No+Image")
-                      }
-                    />
                     {payment.payment_status === "pending" &&
                       onVerifyPayment &&
                       userRole === "admin" && (
@@ -279,13 +344,74 @@ const OrderDetailModal = ({
                       )}
                   </div>
                 ) : (
-                  <p className="text-darkgray/70">Belum ada bukti pembayaran.</p>
+                  <p className="text-darkgray/70">
+                    Belum ada bukti pembayaran.
+                  </p>
                 )}
               </div>
 
-              {/* AKSI ADMIN */}
+              {/* --- TAMBAHAN: FORM UPLOAD RESI (Hanya Admin & Status 'diproses') --- */}
+              {userRole === "admin" &&
+                isProcessed &&
+                !isCancelled &&
+                onShipOrder && (
+                  <div>
+                    <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
+                      Input Resi Pengiriman
+                    </h4>
+                    {shipStatus && (
+                      <div
+                        className={`p-3 rounded-lg text-sm mb-2 ${
+                          shipStatus.type === "success"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {shipStatus.message}
+                      </div>
+                    )}
+                    <form onSubmit={handleShipSubmit} className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-darkgray">
+                          Nomor Resi
+                        </label>
+                        <input
+                          type="text"
+                          value={receiptNumber}
+                          onChange={(e) => setReceiptNumber(e.target.value)}
+                          className="mt-1 block w-full border border-lightmauve rounded-md p-2 focus:ring-2 focus:ring-elegantburgundy"
+                          required
+                          disabled={modalLoading}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-darkgray">
+                          Foto Resi (Opsional)
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setReceiptFile(e.target.files[0])}
+                          className="mt-1 block w-full text-sm text-darkgray file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lightmauve file:text-elegantburgundy hover:file:bg-softpink transition"
+                          disabled={modalLoading}
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={modalLoading || !receiptNumber}
+                        className="w-full bg-elegantburgundy text-white py-2 px-4 rounded-md font-semibold hover:bg-softpink transition disabled:opacity-50"
+                      >
+                        {modalLoading ? "Menyimpan..." : "Simpan Resi & Kirim"}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              {/* --- AKHIR TAMBAHAN --- */}
+
+              {/* AKSI ADMIN ika 'diproses') */}
               {userRole === "admin" &&
                 !isCancelled &&
+                !isProcessed && // Sembunyikan jika 'diproses'
                 currentOrderStatus !== "selesai" && (
                   <div>
                     <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
@@ -322,9 +448,7 @@ const OrderDetailModal = ({
                             {opt.label}
                           </option>
                         ))}
-                        <option value="dibatalkan" disabled={isCancelled}>
-                          Batalkan Pesanan
-                        </option>
+
                       </select>
                       <button
                         type="submit"
@@ -344,9 +468,12 @@ const OrderDetailModal = ({
               {/* BATALKAN PESANAN */}
               {userRole === "admin" &&
                 !isCancelled &&
-                ["pending", "menunggu pembayaran", "diproses", "menunggu verifikasi"].includes(
-                  currentOrderStatus
-                ) &&
+                [
+                  "pending",
+                  "menunggu pembayaran",
+                  "diproses",
+                  "menunggu verifikasi",
+                ].includes(currentOrderStatus) &&
                 onCancelOrder && (
                   <button
                     onClick={onCancelOrder}

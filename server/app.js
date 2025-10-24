@@ -13,7 +13,6 @@ const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const userRoutes = require("./routes/userRoutes");
-const messageRoutes = require("./routes/messageRoutes");
 
 // Database Connection
 const db = require("./models");
@@ -38,6 +37,11 @@ app.use(
   express.static(path.join(__dirname, "uploads", "payments"))
 );
 
+app.use(
+  "/uploads/receipts",
+  express.static(path.join(__dirname, "uploads", "receipts"))
+);
+
 // Root Test Route
 app.get("/", (req, res) => {
   res.send("🛍️ Shakilla Shop Backend is Running!");
@@ -51,7 +55,6 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/messages", messageRoutes);
 
 // Server Listener
 app.listen(PORT, () => {

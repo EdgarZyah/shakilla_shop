@@ -19,6 +19,7 @@ import ProfileUser from "./pages/user/profile";
 import OrdersUser from "./pages/user/orders";
 import EditProfileUser from "./pages/user/editProfile";
 import CartPage from "./pages/cart";
+import PaymentPage from "./pages/paymentPage";
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
         <Route path="/user/profile" element={<ProtectedRoute requiredRole="user"><ProfileUser /></ProtectedRoute>} />
         <Route path="/user/orders" element={<ProtectedRoute requiredRole="user"><OrdersUser /></ProtectedRoute>} />
         <Route path="/user/edit-profile" element={<ProtectedRoute requiredRole="user"><EditProfileUser /></ProtectedRoute>} />
+        <Route path="/payment/:orderId" element={<ProtectedRoute requiredRole="user"><PaymentPage /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

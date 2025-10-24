@@ -36,6 +36,19 @@ const paymentStorage = multer.diskStorage({
   },
 });
 
+// === CONFIG UNTUK RESI PENGIRIMAN ===
+const receiptStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.resolve(__dirname, '../uploads/receipts');
+    ensureDirExistence(uploadPath);
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, 'shipping-' + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) cb(null, true);
   else cb(new Error('Hanya file gambar yang diizinkan!'), false);
@@ -56,4 +69,18 @@ const paymentUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 }).single('payment_proof');
 
-module.exports = { productUpload, paymentUpload };
+// --- PERBAIKAN DI SINI ---
+// .single() harus dipanggil PADA instance multer,
+// BUKAN sebagai properti di dalam konfigurasi.
+const receiptUpload = multer({
+  storage: receiptStorage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
+}).single('shipping_receipt_file'); // <-- Ini adalah perbaikannya
+// --- AKHIR PERBAIKAN ---
+
+module.exports = {
+  productUpload,
+  paymentUpload,
+  receiptUpload // Sekarang ini adalah middleware function yang valid
+};

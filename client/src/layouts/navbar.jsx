@@ -10,6 +10,7 @@ const Navbar = ({ key }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [loadingCart, setLoadingCart] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const mobileMenuRef = useRef(null);
   const cartRef = useRef(null);
@@ -20,16 +21,13 @@ const Navbar = ({ key }) => {
   const isLoggedIn = !!userRole;
 
   const fetchCartData = async () => {
-    if (!userId || userRole !== 'user') { // Hanya fetch jika user logged in & role 'user'
+    if (!userId || userRole !== "user") {
       setCartItems([]);
       setLoadingCart(false);
       return;
     }
     try {
-      // FIX 1: Menggunakan endpoint yang benar: GET /api/cart
       const response = await axiosClient.get(`/cart`);
-      
-      // FIX 2: Asumsi respons /cart mengembalikan data di properti .items
       if (response.data?.items) {
         setCartItems(response.data.items);
       } else {
@@ -43,7 +41,6 @@ const Navbar = ({ key }) => {
     }
   };
 
-  // Efek berjalan saat userId berubah atau key berubah (dipicu dari ProductPage)
   useEffect(() => {
     fetchCartData();
   }, [userId, key]);
@@ -52,7 +49,10 @@ const Navbar = ({ key }) => {
     if (cartRef.current && !cartRef.current.contains(event.target)) {
       setIsCartOpen(false);
     }
-    if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+    if (
+      mobileMenuRef.current &&
+      !mobileMenuRef.current.contains(event.target)
+    ) {
       setIsMobileMenuOpen(false);
     }
   };
@@ -76,25 +76,30 @@ const Navbar = ({ key }) => {
 
   const removeItem = async (itemId) => {
     try {
-      await axiosClient.delete(`/cart/item/${itemId}`); 
-      
-      // FIX 3: Setelah berhasil hapus, panggil fetchCartData untuk me-refresh
-      await fetchCartData(); 
-      
+      await axiosClient.delete(`/cart/item/${itemId}`);
+      await fetchCartData();
     } catch (err) {
       console.error("Error removing item:", err);
     }
   };
 
   const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
     sessionStorage.removeItem("accessToken");
     sessionStorage.removeItem("userRole");
     sessionStorage.removeItem("userId");
-    
+
+    setShowLogoutModal(false);
     navigate("/login", { replace: true });
-    window.location.reload(); 
+    window.location.reload();
   };
 
+  const cancelLogout = () => {
+    setShowLogoutModal(false);
+  };
 
   const CartIcon = ({ itemCount }) => (
     <div className="relative">
@@ -148,130 +153,209 @@ const Navbar = ({ key }) => {
   );
 
   return (
-    <nav className="bg-purewhite sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center">
-            <img
-              src={logo}
-              alt="Shakilla Shop Logo"
-              className="h-20 w-auto object-contain"
-            />
-          </Link>
-          
-          <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide">
+    <>
+      <nav className="bg-purewhite sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <Link to="/" className="flex items-center">
+              <img
+                src={logo}
+                alt="Shakilla Shop Logo"
+                className="h-20 w-auto object-contain"
+              />
+            </Link>
+
+            <div className="hidden md:flex items-center space-x-8">
+              <Link
+                to="/"
+                className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide"
+              >
+                Home
+              </Link>
+              <Link
+                to="/products"
+                className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide"
+              >
+                Products
+              </Link>
+              <Link
+                to="/about"
+                className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide"
+              >
+                About Us
+              </Link>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {isLoggedIn ? (
+                <>
+                  <Link
+                    to={
+                      userRole === "admin"
+                        ? "/admin/dashboard"
+                        : "/user/dashboard"
+                    }
+                    className="hidden md:flex items-center px-4 py-2 text-sm font-semibold text-darkgray bg-lightmauve rounded-full hover:bg-elegantburgundy hover:text-purewhite transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="hidden md:block px-4 py-2 text-sm font-semibold text-purewhite bg-elegantburgundy rounded-full hover:bg-softpink"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="hidden md:block text-darkgray font-semibold text-sm hover:text-elegantburgundy"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="hidden md:block px-4 py-2 text-sm font-semibold text-purewhite bg-elegantburgundy rounded-full hover:bg-softpink"
+                  >
+                    Daftar
+                  </Link>
+                </>
+              )}
+
+              <div className="relative" ref={cartRef}>
+                {userRole === "user" && (
+                  <button
+                    onClick={toggleCart}
+                    className="p-2 rounded-full text-darkgray hover:bg-lightmauve focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-elegantburgundy transition-colors duration-300"
+                    aria-label="Toggles cart dropdown"
+                  >
+                    <CartIcon itemCount={cartItems.length} />
+                  </button>
+                )}
+                <CartDropdown
+                  cartItems={cartItems}
+                  onRemoveItem={removeItem}
+                  isCartOpen={isCartOpen}
+                  onToggle={toggleCart}
+                />
+              </div>
+
+              <button
+                onClick={toggleMobileMenu}
+                className="md:hidden p-2 rounded-full text-darkgray hover:bg-lightmauve focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-elegantburgundy transition-colors duration-300"
+                aria-controls="mobile-menu"
+                aria-expanded={isMobileMenuOpen}
+              >
+                <HamburgerIcon isOpen={isMobileMenuOpen} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={`absolute md:hidden bg-purewhite w-full shadow-lg overflow-hidden transition-all duration-300 ease-in-out z-[49] ${
+            isMobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
+          id="mobile-menu"
+        >
+          <div className="px-2 pt-2 pb-3 space-y-2 text-center">
+            <Link
+              to="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
+            >
               Home
             </Link>
-            <Link to="/products" className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide">
+            <Link
+              to="/products"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
+            >
               Products
             </Link>
-            <Link to="/about" className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide">
+            <Link
+              to="/about"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
+            >
               About Us
             </Link>
-          </div>
-
-          <div className="flex items-center space-x-4">
             {isLoggedIn ? (
               <>
                 <Link
-                  to={userRole === "admin" ? "/admin/dashboard" : "/user/dashboard"}
-                  className="hidden md:flex items-center px-4 py-2 text-sm font-semibold text-darkgray bg-lightmauve rounded-full hover:bg-elegantburgundy hover:text-purewhite transition-colors"
+                  to={
+                    userRole === "admin"
+                      ? "/admin/dashboard"
+                      : "/user/dashboard"
+                  }
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
                 >
                   Dashboard
                 </Link>
-                <button 
-                    onClick={handleLogout}
-                    className="hidden md:block px-4 py-2 text-sm font-semibold text-purewhite bg-elegantburgundy rounded-full hover:bg-softpink"
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition-colors"
                 >
                   Logout
                 </button>
               </>
             ) : (
               <>
-                <Link to="/login" className="hidden md:block text-darkgray font-semibold text-sm hover:text-elegantburgundy">
+                <Link
+                  to="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
+                >
                   Login
                 </Link>
-                <Link to="/signup" className="hidden md:block px-4 py-2 text-sm font-semibold text-purewhite bg-elegantburgundy rounded-full hover:bg-softpink">
+                <Link
+                  to="/signup"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-base font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition-colors rounded-lg"
+                >
                   Daftar
                 </Link>
               </>
             )}
-
-            <div className="relative" ref={cartRef}>
-              {userRole === 'user' && ( // Hanya tampilkan icon cart untuk role 'user'
-              <button
-                onClick={toggleCart}
-                className="p-2 rounded-full text-darkgray hover:bg-lightmauve focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-elegantburgundy transition-colors duration-300"
-                aria-label="Toggles cart dropdown"
-              >
-                <CartIcon itemCount={cartItems.length} />
-              </button>
-              )}
-              {/* CartDropdown dipanggil terlepas dari role, tetapi hanya muncul jika isCartOpen true */}
-              <CartDropdown
-                cartItems={cartItems}
-                onRemoveItem={removeItem}
-                isCartOpen={isCartOpen}
-                onToggle={toggleCart}
-              />
-            </div>
-            
-            <button
-              onClick={toggleMobileMenu}
-              className="md:hidden p-2 rounded-full text-darkgray hover:bg-lightmauve focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-elegantburgundy transition-colors duration-300"
-              aria-controls="mobile-menu"
-              aria-expanded={isMobileMenuOpen}
-            >
-              <HamburgerIcon isOpen={isMobileMenuOpen} />
-            </button>
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile Menu Panel */}
-      <div
-        className={`absolute md:hidden bg-purewhite w-full shadow-lg overflow-hidden transition-all duration-300 ease-in-out z-[49] ${
-          isMobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-        }`}
-        id="mobile-menu"
-      >
-        <div className="px-2 pt-2 pb-3 space-y-2 text-center">
-          <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300">
-            Home
-          </Link>
-          <Link to="/products" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300">
-            Products
-          </Link>
-          <Link to="/about" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300">
-            About Us
-          </Link>
-          {isLoggedIn ? (
-            <>
-              <Link to={userRole === "admin" ? "/admin/dashboard" : "/user/dashboard"} onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300">
-                Dashboard
-              </Link>
+      {/* --- PERUBAHAN UTAMA: Menggunakan gaya modal dari Sidebar --- */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full flex justify-center items-center z-50">
+          <div className="bg-purewhite p-6 rounded-lg shadow-xl w-80">
+            <h3 className="text-xl font-bold mb-4 text-darkgray">
+              Konfirmasi Logout
+            </h3>
+            <p className="text-darkgray/70 mb-6">
+              Apakah Anda yakin ingin keluar dari akun ini?
+            </p>
+            <div className="flex justify-end gap-2">
               <button
-                onClick={() => {handleLogout(); setIsMobileMenuOpen(false);}}
-                className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition-colors"
+                type="button"
+                onClick={cancelLogout}
+                className="py-2 px-4 border border-lightmauve rounded-md shadow-sm text-sm font-medium text-darkgray hover:bg-lightmauve transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition"
               >
                 Logout
               </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300">
-                Login
-              </Link>
-              <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-base font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition-colors rounded-lg">
-                Daftar
-              </Link>
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
-      
-    </nav>
+      )}
+    </>
   );
 };
 

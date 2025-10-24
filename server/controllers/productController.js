@@ -114,7 +114,6 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: "Kategori tidak valid." });
     }
 
-    // Pastikan semua path menuju /uploads/products
     const thumbnailFile = files.thumbnail[0].filename;
     const thumbnail_url = `/uploads/products/${thumbnailFile}`;
 

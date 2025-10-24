@@ -1,34 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react'; // <-- useEffect dihapus
 
 const SearchBar = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  // const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm); // <-- Dihapus
 
-  // Efek untuk debouncing
-  useEffect(() => {
-    // Atur timer untuk memperbarui debouncedSearchTerm setelah 500ms
-    const timerId = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
+  // Efek untuk debouncing dihapus
 
-    // Fungsi cleanup: Hapus timer jika searchTerm berubah atau komponen dilepas
-    return () => {
-      clearTimeout(timerId);
-    };
-  }, [searchTerm]);
-
-  // Efek untuk memanggil fungsi onSearch
-  useEffect(() => {
-    // Panggil onSearch hanya ketika debouncedSearchTerm berubah
-    onSearch(debouncedSearchTerm);
-  }, [debouncedSearchTerm, onSearch]);
+  // Efek untuk memanggil fungsi onSearch dihapus
 
   const handleInputChange = (e) => {
     setSearchTerm(e.target.value);
   };
 
+  // --- Handler untuk Submit Form ---
+  const handleSubmit = (e) => {
+    e.preventDefault(); // Mencegah reload halaman
+    onSearch(searchTerm); // Panggil onSearch saat submit
+  };
+  // --------------------------------
+
   return (
-    <div className="flex-1 w-full max-w-sm">
+    // --- Diubah menjadi <form> ---
+    <form className="flex-1 w-full max-w-sm" onSubmit={handleSubmit}>
       <div className="relative">
         <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
           <svg className="w-4 h-4 text-darkgray" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
@@ -45,7 +38,8 @@ const SearchBar = ({ onSearch }) => {
           required
         />
       </div>
-    </div>
+    </form>
+    // --- Akhir <form> ---
   );
 };
 

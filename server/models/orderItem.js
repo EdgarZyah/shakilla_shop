@@ -42,7 +42,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'OrderItem',
-    tableName: 'order_items',
+    tableName: 'orderitems',
     timestamps: false,
     underscored: true, // Memastikan mapping ke snake_case di DB
   });

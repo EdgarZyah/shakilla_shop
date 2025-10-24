@@ -79,7 +79,13 @@ const Table = ({ columns, data, loading, onSort, sortBy, sortOrder, renderAction
             <tr key={rowIndex} className="hover:bg-lightmauve transition-colors">
               {columns.map((column, colIndex) => (
                 <td key={colIndex} className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-darkgray">
-                  {column.render ? column.render(row) : row[column.key]}
+                  {
+                    // --- AWAL PERUBAHAN ---
+                    column.render 
+                      ? column.render(row, rowIndex) // 1. Kirim rowIndex ke render prop
+                      : (column.key === 'no' ? rowIndex + 1 : row[column.key]) // 2. Tampilkan rowIndex + 1 jika key='no'
+                    // --- AKHIR PERUBAHAN ---
+                  }
                 </td>
               ))}
               {renderActions && (

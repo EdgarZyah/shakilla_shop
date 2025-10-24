@@ -1,7 +1,7 @@
 // client/src/components/whatsappRedirect.jsx
 import React from 'react';
 
-const WHATSAPP_NUMBER = "62895421996608";// Ganti dengan nomor WhatsApp Anda
+const WHATSAPP_NUMBER = "6289503609911";// Ganti dengan nomor WhatsApp Anda
 
 const WhatsappRedirect = ({ order, user, cartItems }) => {
   const generateMessage = () => {

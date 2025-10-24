@@ -8,7 +8,6 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       User.hasMany(models.Cart, { foreignKey: 'user_id', as: 'carts' });
       User.hasMany(models.Order, { foreignKey: 'user_id', as: 'orders' });
-      User.hasMany(models.Message, { foreignKey: 'user_id', as: 'messages' });
     }
 
     // Method untuk membandingkan password saat login

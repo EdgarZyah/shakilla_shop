@@ -36,6 +36,24 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false
     },
+
+    // --- TAMBAHAN YANG HILANG ---
+    shipping_method: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    shipping_cost: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    grand_total: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    // --- AKHIR TAMBAHAN ---
+
     shipping_address: {
       type: DataTypes.TEXT,
       allowNull: false
@@ -53,17 +71,23 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE,
       allowNull: true
     },
-    // Kolom createdAt dan updatedAt tidak perlu didefinisikan di sini
-    // Sequelize akan menanganinya secara otomatis
+    
+    // --- TAMBAHAN RESI YANG HILANG ---
+    shipping_receipt_number: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    shipping_receipt_url: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // --- AKHIR TAMBAHAN RESI ---
+    
   }, {
     sequelize,
     modelName: 'Order',
     tableName: 'orders',
-    // --- PERBAIKAN UTAMA ---
-    // Tambahkan opsi ini agar Sequelize menggunakan snake_case untuk kolom
-    // timestamp otomatis (created_at dan updated_at)
     underscored: true,
-    // Pastikan timestamps diaktifkan (ini adalah default, tapi lebih baik eksplisit)
     timestamps: true, 
   });
 

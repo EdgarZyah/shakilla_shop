@@ -4,6 +4,7 @@ import Footer from "../layouts/footer.jsx";
 import Hero from "../components/hero.jsx";
 import Card from "../components/card";
 import Pagination from "../components/pagination";
+import WhatsappOverlay from "../components/whatsappOverlay";
 import axiosClient from "../api/axiosClient";
 
 const heroTitle = "Discover the Latest Fashion Trends";
@@ -12,44 +13,39 @@ const heroSubtitle = "[ Explore our curated collection of style & elegance ]";
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [inputValue, setInputValue] = useState(""); // <-- Ditambahkan
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
   useEffect(() => {
     const fetchProducts = async () => {
-        try {
-            const res = await axiosClient.get("/products");
-            // FIX: Mengambil array produk dari .data.products
-            setProducts(res.data.products); 
-        } catch (err) {
-            console.error("Error fetching products:", err);
-            setProducts([]);
-        }
+      try {
+        const res = await axiosClient.get("/products");
+        setProducts(res.data.products);
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        setProducts([]);
+      }
     };
     fetchProducts();
   }, []);
 
-  // Ambil daftar kategori unik dari produk
   const categories = [
     "All Categories",
-    // FIX: Menggunakan alias lowercase 'category'
-    ...new Set(products.map((p) => p.category?.name).filter(Boolean)), 
+    ...new Set(products.map((p) => p.category?.name).filter(Boolean)),
   ];
 
-  // Filter produk berdasarkan search dan kategori
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+      .includes(searchTerm.toLowerCase()); // <-- Menggunakan searchTerm
     const matchesCategory =
       selectedCategory === "All Categories" ||
-      // FIX: Menggunakan alias lowercase 'category'
-      product.category?.name === selectedCategory; 
+      product.category?.name === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  // Logika Pagination
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const lastItemIndex = currentPage * itemsPerPage;
   const firstItemIndex = lastItemIndex - itemsPerPage;
@@ -57,8 +53,16 @@ const Products = () => {
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // --- Handler untuk Submit Form ---
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setSearchTerm(inputValue);
+    setCurrentPage(1);
+  };
+  // --------------------------------
 
   return (
     <div className="min-h-screen bg-lightmauve">
@@ -68,17 +72,26 @@ const Products = () => {
 
       {/* Search & Filter */}
       <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <input
-          type="text"
-          placeholder="Search fashion items..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-1/3 px-4 py-2 bg-purewhite border border-lightmauve rounded-md focus:outline-none focus:ring-2 focus:ring-elegantburgundy"
-          aria-label="Search fashion items"
-        />
+        
+        {/* --- Search Bar (Diubah menjadi Form) --- */}
+        <form onSubmit={handleSearchSubmit} className="w-full md:w-1/3">
+          <input
+            type="text"
+            placeholder="Search fashion items..."
+            value={inputValue} // <-- Diubah
+            onChange={(e) => setInputValue(e.target.value)} // <-- Diubah
+            className="w-full px-4 py-2 bg-purewhite border border-lightmauve rounded-md focus:outline-none focus:ring-2 focus:ring-elegantburgundy"
+            aria-label="Search fashion items"
+          />
+        </form>
+        {/* --- Akhir Search Bar --- */}
+
         <select
           value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
+          onChange={(e) => {
+            setSelectedCategory(e.target.value);
+            setCurrentPage(1); // Tetap reset paginasi saat filter berubah
+          }}
           className="w-full md:w-48 px-4 py-2 bg-purewhite border border-lightmauve rounded-md focus:outline-none focus:ring-2 focus:ring-elegantburgundy"
           aria-label="Filter by category"
         >
@@ -107,7 +120,7 @@ const Products = () => {
           </div>
         )}
       </div>
-      
+
       {/* Pagination */}
       {totalPages > 1 && (
         <Pagination
@@ -116,7 +129,7 @@ const Products = () => {
           onPageChange={handlePageChange}
         />
       )}
-
+      <WhatsappOverlay />
       <Footer />
     </div>
   );

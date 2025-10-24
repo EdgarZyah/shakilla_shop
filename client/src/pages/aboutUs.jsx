@@ -2,7 +2,7 @@ import React from "react";
 import Hero from "../components/hero.jsx";
 import Navbar from "../layouts/navbar.jsx";
 import Footer from "../layouts/footer.jsx";
-
+import WhatsappOverlay from "../components/whatsappOverlay";
 const AboutUs = () => {
   return (
     <div className="min-h-screen bg-lightmauve flex flex-col">
@@ -46,21 +46,13 @@ const AboutUs = () => {
             {/* Contact Link */}
             <div className="text-darkgray mt-8 text-sm sm:text-base">
               <p>
-                Hubungi kami untuk pertanyaan, kerjasama, atau saran melalui
-                halaman{" "}
-                <a
-                  href="/contact"
-                  className="text-elegantburgundy hover:underline"
-                >
-                  Contact
-                </a>
-                .
+                Hubungi kami untuk pertanyaan, kerjasama melalui contact WhatsApp kami.
               </p>
             </div>
           </div>
         </section>
       </main>
-
+      <WhatsappOverlay />
       <Footer />
     </div>
   );

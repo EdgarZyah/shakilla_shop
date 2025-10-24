@@ -24,7 +24,7 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-// [USER] Memperbarui data profil sendiri
+// [USER] edit profil sendiri
 exports.updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
