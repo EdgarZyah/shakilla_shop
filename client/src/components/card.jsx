@@ -1,98 +1,78 @@
-// client/src/components/card.jsx
 import React from "react";
 import { Link } from "react-router-dom";
+import { getCleanedImageUrl } from "../utils/imageHelper"; // <-- IMPORT RESMI
 
-// === Helper untuk URL gambar aman lintas environment ===
-const getCleanedImageUrl = (relativePath) => {
-    if (!relativePath) return "";
+// --- HAPUS FUNGSI FALLBACK ---
 
-    const API_URL = import.meta.env.VITE_API_URL || "https://api2.logikarya.my.id/api";
-    const BASE_URL = API_URL.replace(/\/api\/?$/, ""); // hapus '/api' di akhir
+// --- Helper Varian ---
+const getPriceDisplay = (variants) => {
+  if (!variants || variants.length === 0) {
+    return "Harga tidak tersedia";
+  }
+  const prices = variants.map(v => parseFloat(v.price));
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
 
-    // Pastikan path tanpa double slash
-    const cleanPath = relativePath.replace(/^\/+/, "");
-    return `${BASE_URL}/${cleanPath}`;
+  if (minPrice === maxPrice) {
+    return `Rp ${minPrice.toLocaleString("id-ID")}`;
+  } else {
+    return `Rp ${minPrice.toLocaleString("id-ID")}`;
+  }
 };
 
 const Card = ({ product }) => {
-    if (!product) return null;
+  if (!product) return null;
+  
+  // --- HAPUS TERNARY CHECK ---
+  const imageUrl = getCleanedImageUrl(product.thumbnail_url); // <-- LANGSUNG PAKAI
+  const priceDisplay = getPriceDisplay(product.variants);
+  const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0;
+  const isOutOfStock = totalStock === 0;
 
-    const { id, name, price, brand, thumbnail_url, stock } = product;
-    const isOutOfStock = stock <= 0;
-
-    const imageUrl = thumbnail_url ? getCleanedImageUrl(thumbnail_url) : "";
-
-    return (
-        <div className="relative flex flex-col overflow-hidden rounded-2xl border border-lightmauve bg-purewhite shadow-sm transition-all duration-300 hover:shadow-lg">
-            <Link
-                to={`/productpage/${id}`}
-                className="relative block w-full overflow-hidden rounded-t-2xl"
-            >
-                {imageUrl && (
-                    <img
-                        src={imageUrl}
-                        alt={name}
-                        className="h-64 w-full object-cover transition-transform duration-500 hover:scale-105"
-                        loading="lazy"
-                    />
-                )}
-            </Link>
-
-            {isOutOfStock ? (
-                <span className="absolute left-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-medium text-purewhite">
-                    Stok Habis
-                </span>
-            ) : (
-                brand && (
-                    <span className="absolute left-3 top-3 rounded-full bg-purewhite/80 px-3 py-1 text-xs font-medium text-darkgray backdrop-blur-sm">
-                        {brand}
-                    </span>
-                )
-            )}
-
-            <div className="flex flex-1 flex-col justify-between gap-2 p-4 md:p-5">
-                <div>
-                    <Link to={`/productpage/${id}`} className="hover:text-elegantburgundy">
-                        <h3 className="text-lg font-semibold text-darkgray line-clamp-2">
-                            {name}
-                        </h3>
-                    </Link>
-                </div>
-
-                <div className="mt-2 flex items-center justify-between">
-                    <p className="text-xl font-bold text-darkgray">
-                        Rp {price?.toLocaleString("id-ID")}
-                    </p>
-
-                    {/* --- PERUBAHAN UTAMA: Tombol diubah menjadi Link --- */}
-                    <Link
-                        to={`/productpage/${id}`}
-                        className={`group flex items-center gap-1 rounded-full ${
-                            isOutOfStock
-                                ? "cursor-not-allowed bg-gray-400 pointer-events-none"
-                                : "bg-elegantburgundy hover:bg-gray-700"
-                        } px-4 py-2 text-sm font-medium text-purewhite transition-all duration-300`}
-                        aria-label={`Lihat detail ${name}`}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                        >
-                            <circle cx="10" cy="21" r="3" />
-                            <circle cx="20" cy="21" r="3" />
-                            <path d="M1 1h4l2 13h13l-2-7H6" />
-                        </svg>
-                        <span className="hidden sm:inline">Beli</span>
-                    </Link>
-                    {/* --- AKHIR PERUBAHAN --- */}
-                </div>
-            </div>
+  return (
+    <div className="relative flex w-full max-w-xs flex-col overflow-hidden rounded-lg border border-lightmauve bg-purewhite shadow-md transition-transform duration-300 hover:shadow-xl hover:-translate-y-1">
+      <Link
+        className="relative mx-3 mt-3 flex h-60 overflow-hidden rounded-xl"
+        to={`/productpage/${product.id}`}
+      >
+        <img
+          className="h-full w-full object-cover"
+          src={imageUrl} // <-- Variabel yang sudah bersih
+          alt={product.name}
+        />
+        {isOutOfStock && (
+            <span className="absolute top-0 left-0 m-2 rounded-full bg-red-600/80 px-2 text-center text-sm font-medium text-white">
+                Stok Habis
+            </span>
+        )}
+      </Link>
+      <div className="mt-4 px-5 pb-5">
+        <Link to={`/productpage/${product.id}`}>
+          <h5 className="text-xl tracking-tight text-darkgray font-semibold truncate">
+            {product.name}
+          </h5>
+        </Link>
+        <div className="mt-2 mb-4 flex items-center justify-between">
+          <p>
+            <span className="text-2xl font-bold text-elegantburgundy">
+              {priceDisplay}
+            </span>
+          </p>
         </div>
-    );
+        <Link
+          to={`/productpage/${product.id}`}
+          className={`flex items-center justify-center rounded-md px-5 py-2.5 text-center text-sm font-medium text-purewhite transition-colors duration-200
+            ${isOutOfStock 
+              ? "bg-gray-400 cursor-not-allowed" 
+              : "bg-elegantburgundy hover:bg-softpink hover:text-elegantburgundy focus:outline-none focus:ring-4 focus:ring-blue-300"
+            }`}
+          disabled={isOutOfStock}
+        >
+          {isOutOfStock ? "Lihat Detail" : "Beli Sekarang"}
+        </Link>
+      </div>
+    </div>
+  );
 };
 
 export default Card;

@@ -170,15 +170,6 @@ const ListProduct = () => {
       render: (product) => product.name || "-",
     },
     {
-      key: "price",
-      label: "Harga",
-      sortable: true,
-      render: (product) =>
-        product.price
-          ? `Rp ${product.price.toLocaleString("id-ID")}`
-          : "Rp 0",
-    },
-    {
       key: "category.name",
       label: "Kategori",
       sortable: true,

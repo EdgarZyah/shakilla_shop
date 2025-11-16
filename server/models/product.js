@@ -4,9 +4,11 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Product extends Model {
     static associate(models) {
+      // Produk TETAP terhubung ke Kategori
       Product.belongsTo(models.Category, { foreignKey: 'category_id', as: 'category' });
-      Product.hasMany(models.CartItem, { foreignKey: 'product_id', as: 'cartItems' });
-      Product.hasMany(models.OrderItem, { foreignKey: 'product_id', as: 'orderItems' });
+
+      // BARU: Produk memiliki BANYAK Varian
+      Product.hasMany(models.ProductVariant, { foreignKey: 'product_id', as: 'variants' });
     }
   }
   
@@ -24,15 +26,6 @@ module.exports = (sequelize, DataTypes) => {
     description: {
       type: DataTypes.TEXT,
     },
-    price: {
-      type: DataTypes.DECIMAL(12, 2),
-      allowNull: false,
-    },
-    stock: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-    },
-    // FIX UTAMA: Menggunakan snake_case secara eksplisit di model
     category_id: { 
       type: DataTypes.INTEGER,
       allowNull: false, 
@@ -41,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
     },
     image_url: {
-      type: DataTypes.TEXT, // FIX: Menggunakan TEXT untuk menampung JSON String yang panjang
+      type: DataTypes.TEXT,
     },
   }, {
     sequelize,

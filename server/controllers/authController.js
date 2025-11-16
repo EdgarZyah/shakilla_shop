@@ -1,4 +1,3 @@
-// server/controllers/authController.js
 const db = require("../models/index");
 const { User } = db;
 const jwt = require("jsonwebtoken");
@@ -15,12 +14,22 @@ exports.register = async (req, res) => {
       password,
       address,
       zip_code,
+      phone_number, // <-- TAMBAHAN BARU
     } = req.body;
 
-    if (!email || !password || !first_name || !last_name || !username) {
+    // Validasi diperbarui (sesuai frontend, nomor hp wajib)
+    if (
+      !email ||
+      !password ||
+      !first_name ||
+      !last_name ||
+      !username ||
+      !phone_number
+    ) {
       return res.status(400).json({ message: "Semua field wajib diisi." });
     }
 
+    // Cek duplikat email/username
     const existingUser = await User.findOne({
       where: {
         [Op.or]: [{ email }, { username }],
@@ -32,6 +41,13 @@ exports.register = async (req, res) => {
       return res.status(409).json({ message: `${field} sudah terdaftar.` });
     }
 
+    // --- VALIDASI BARU UNTUK NOMOR HP ---
+    const existingPhone = await User.findOne({ where: { phone_number } });
+    if (existingPhone) {
+      return res.status(409).json({ message: "Nomor telepon sudah terdaftar." });
+    }
+    // --- AKHIR VALIDASI ---
+
     const newUser = await User.create({
       first_name: first_name,
       last_name: last_name,
@@ -40,6 +56,7 @@ exports.register = async (req, res) => {
       password,
       address,
       zip_code,
+      phone_number: phone_number, // <-- TAMBAHAN BARU
     });
 
     const token = jwt.sign(
@@ -50,6 +67,7 @@ exports.register = async (req, res) => {
       }
     );
 
+    // Respons ini sudah benar untuk auto-login di frontend
     res.status(201).json({
       message: "Pendaftaran berhasil!",
       user: {
@@ -63,12 +81,10 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error);
-    res
-      .status(500)
-      .json({
-        message: "Pendaftaran gagal karena kesalahan server.",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Pendaftaran gagal karena kesalahan server.",
+      error: error.message,
+    });
   }
 };
 
@@ -121,8 +137,9 @@ exports.login = async (req, res) => {
   }
 };
 
-// Fungsi untuk mendapatkan data user berdasarkan token yang aktif (Keep Alive/Auto Login)
+// Fungsi untuk mendapatkan data user berdasarkan token yang aktif
 exports.getProfile = (req, res) => {
+  // req.user di-populate oleh middleware 'authenticate'
   res.status(200).json({
     message: "Profile berhasil diambil.",
     user: {
@@ -134,6 +151,7 @@ exports.getProfile = (req, res) => {
       address: req.user.address,
       zip_code: req.user.zip_code,
       username: req.user.username,
+      phone_number: req.user.phone_number, // <-- TAMBAHAN BARU
     },
   });
 };

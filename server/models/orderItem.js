@@ -1,12 +1,14 @@
 // server/models/orderitem.js
-'use strict';
+'useS trict';
 const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class OrderItem extends Model {
     static associate(models) {
-      // FIX: Menggunakan alias 'order' dan 'product' (huruf kecil)
+      // TETAP: Terhubung ke Order
       OrderItem.belongsTo(models.Order, { foreignKey: 'order_id', as: 'order' });
-      OrderItem.belongsTo(models.Product, { foreignKey: 'product_id', as: 'product' });
+
+      // DIUBAH: Terhubung ke ProductVariant, bukan Product
+      OrderItem.belongsTo(models.ProductVariant, { foreignKey: 'product_variant_id', as: 'productVariant' });
     }
   }
   OrderItem.init({
@@ -20,31 +22,24 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    product_id: {
+    product_variant_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    // FIX 1: Mendefinisikan quantity secara eksplisit
     quantity: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    // FIX 2: Mendefinisikan price secara eksplisit
     price: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
-    },
-    // FIX 3: Mendefinisikan size secara eksplisit
-    size: { 
-      type: DataTypes.STRING,
-      allowNull: true,
     },
   }, {
     sequelize,
     modelName: 'OrderItem',
     tableName: 'orderitems',
-    timestamps: false,
-    underscored: true, // Memastikan mapping ke snake_case di DB
+    timestamps: false, 
+    underscored: true,
   });
   return OrderItem;
 };

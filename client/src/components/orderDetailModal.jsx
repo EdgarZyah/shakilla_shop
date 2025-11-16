@@ -1,19 +1,9 @@
+// client/src/components/orderDetailModal.jsx
 import React, { useState, useEffect } from "react";
+import { getCleanedImageUrl } from "../utils/imageHelper"; // <-- Menggunakan helper resmi
+import { FaPhone } from "react-icons/fa"; // <-- Impor ikon telepon
 
 // === UTILITAS UMUM ===
-const getBaseUrl = () => {
-  const api_url =
-    import.meta.env.VITE_API_URL || "https://api2.logikarya.my.id/api";
-  return api_url.replace(/\/api\/?$/, ""); // hapus '/api' di akhir URL
-};
-
-// ✅ Fungsi memastikan path gambar tidak dobel domain
-const buildImageUrl = (path) => {
-  if (!path) return "";
-  const base = getBaseUrl();
-  const cleanPath = path.replace(/^https?:\/\/[^/]+/, "").replace(/^\/+/, "");
-  return `${base}/${cleanPath}`;
-};
 
 const formatStatus = (status) => {
   if (!status) return "N/A";
@@ -71,29 +61,24 @@ const OrderDetailModal = ({
   modalLoading,
   updateStatus,
   userRole,
-  // --- TAMBAHAN PROPS ---
-  onShipOrder, // Fungsi untuk submit resi
-  shipStatus, // Status (loading/error) dari submit resi
-  // --- AKHIR TAMBAHAN PROPS ---
+  onShipOrder,
+  shipStatus,
 }) => {
   if (!isOpen || !order) return null;
 
   const orderItems = order.items || [];
   const payment = order.payment;
-  const user = order.user || order.User;
+  const user = order.user || order.User; // 'user' sekarang berisi phone_number
   const currentOrderStatus = order.order_status || "pending";
 
   const isCancelled = currentOrderStatus === "dibatalkan";
   const isAwaitingVerification = currentOrderStatus === "menunggu verifikasi";
-  const isProcessed = currentOrderStatus === "diproses"; // Status "diproses"
+  const isProcessed = currentOrderStatus === "diproses";
   const isOrderFinal = ["selesai", "dibatalkan"].includes(currentOrderStatus);
 
   const [newStatus, setNewStatus] = useState(currentOrderStatus);
-
-  // --- TAMBAHAN STATE UNTUK RESI ---
   const [receiptNumber, setReceiptNumber] = useState("");
   const [receiptFile, setReceiptFile] = useState(null);
-  // --- AKHIR TAMBAHAN STATE ---
 
   useEffect(() => {
     setNewStatus(currentOrderStatus);
@@ -109,38 +94,31 @@ const OrderDetailModal = ({
     const options = [
       { value: currentOrderStatus, label: formatStatus(currentOrderStatus) },
     ];
-
     if (isOrderFinal || isCancelled) return options;
-
     const nextStatuses = [
       { value: "diproses", label: "Sedang Diproses" },
       { value: "dikirim", label: "Dalam Pengiriman" },
       { value: "diterima", label: "Pesanan Diterima" },
     ];
-
     nextStatuses.forEach((opt) => {
       if (opt.value !== currentOrderStatus) options.push(opt);
     });
-
     return options;
   };
 
   const availableStatusOptions = getAvailableStatusOptions();
 
-  // --- TAMBAHAN: Handle submit resi ---
   const handleShipSubmit = (e) => {
     e.preventDefault();
     if (onShipOrder) {
       const formData = new FormData();
       formData.append("shipping_receipt_number", receiptNumber);
       if (receiptFile) {
-        // Nama field harus cocok dengan multer: 'shipping_receipt_file'
         formData.append("shipping_receipt_file", receiptFile);
       }
       onShipOrder(order.id, formData);
     }
   };
-  // --- AKHIR TAMBAHAN ---
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center p-4 z-50 overflow-y-auto">
@@ -167,46 +145,70 @@ const OrderDetailModal = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* === KIRI === */}
             <div className="flex flex-col space-y-6">
-              {/* INFORMASI UMUM */}
+              {/* INFORMASI PEMBELI (DIPERBARUI) */}
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
-                  Informasi Umum
+                  Informasi Pembeli
                 </h4>
-                <p className="text-darkgray font-medium">Pembeli:</p>
-                <p className="text-darkgray">
-                  {user
-                    ? `${user.first_name || ""} ${user.last_name || ""}`
-                    : "N/A"}
-                </p>
-                <p className="text-sm text-darkgray/70">
-                  {user?.email || "N/A"}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-darkgray font-medium">
+                    {user
+                      ? `${user.first_name || ""} ${user.last_name || ""}`
+                      : "N/A"}
+                    <span className="text-sm text-darkgray/70 ml-2">
+                      (@{user?.username || "N/A"})
+                    </span>
+                  </p>
+                  <p className="text-sm text-darkgray/80">
+                    {user?.email || "N/A"}
+                  </p>
+                  
+                  {/* --- TAMBAHAN BARU --- */}
+                  <p className="text-sm text-darkgray/80 flex items-center gap-2">
+                    <FaPhone size={12} className="flex-shrink-0" />
+                    {user?.phone_number || "No. Telepon belum diatur"}
+                  </p>
+                  {/* -------------------- */}
+                </div>
               </div>
 
-              {/* ITEM PESANAN */}
+              {/* ITEM PESANAN (DIPERBARUI) */}
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
                   Item Pesanan
                 </h4>
                 <ul className="divide-y divide-lightmauve max-h-40 overflow-y-auto pr-4">
-                  {orderItems.map((item) => (
-                    <li key={item.id} className="py-3 flex justify-between">
-                      <div>
+                  {orderItems.map((item) => {
+                    // Logika baru untuk mengambil data dari varian
+                    const variant = item.productVariant;
+                    const product = variant?.product;
+
+                    return (
+                      <li key={item.id} className="py-3 flex justify-between">
+                        <div>
+                          <p className="text-darkgray font-medium">
+                            {product?.name ||
+                              `Varian ID: ${item.product_variant_id} (Data Tidak Lengkap)`}
+                          </p>
+                          <p className="text-sm text-darkgray/70">
+                            Jumlah: {item.quantity}
+                            {variant?.color && (
+                              <span className="ml-2">| Warna: {variant.color}</span>
+                            )}
+                            {variant?.size && (
+                              <span className="ml-2">| Ukuran: {variant.size}</span>
+                            )}
+                          </p>
+                        </div>
                         <p className="text-darkgray font-medium">
-                          {item.product?.name ||
-                            `ID: ${item.product_id} (Dihapus)`}
+                          Rp {calculateItemSubtotal(item.price, item.quantity)}
                         </p>
-                        <p className="text-sm text-darkgray/70">
-                          Jumlah: {item.quantity} | Ukuran: {item.size || "N/A"}
-                        </p>
-                      </div>
-                      <p className="text-darkgray font-medium">
-                        Rp {calculateItemSubtotal(item.price, item.quantity)}
-                      </p>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
+              
               {/* RINGKASAN PESANAN */}
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
@@ -223,7 +225,6 @@ const OrderDetailModal = ({
                     {parseFloat(order.total_price || 0).toLocaleString("id-ID")}
                   </span>
                 </div>
-                {/* --- TAMBAHAN: Detail Biaya Pengiriman & Grand Total --- */}
                 <div className="flex justify-between text-sm text-darkgray mt-1">
                   <span>Biaya Ongkir:</span>
                   <span>
@@ -240,39 +241,35 @@ const OrderDetailModal = ({
                     {parseFloat(order.grand_total || 0).toLocaleString("id-ID")}
                   </span>
                 </div>
-                
               </div>
             </div>
 
             {/* === KANAN === */}
             <div className="flex flex-col space-y-6">
+              {/* INFO STATUS */}
+              <div className="mt-2">
+                <p className="text-darkgray font-medium">Status Pesanan:</p>
+                <span
+                  className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadge(
+                    currentOrderStatus
+                  )}`}
+                >
+                  {formatStatus(currentOrderStatus)}
+                </span>
+              </div>
+              
               {/* INFO PENGIRIMAN */}
-              {/* --- AKHIR TAMBAHAN --- */}
-                <div className="mt-2">
-                  <p className="text-darkgray font-medium">Status Pesanan:</p>
-                  <span
-                    className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusBadge(
-                      currentOrderStatus
-                    )}`}
-                  >
-                    {formatStatus(currentOrderStatus)}
-                  </span>
-                </div>
               <div>
                 <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
                   Informasi Pengiriman
                 </h4>
                 <p className="text-darkgray">
-                  {order.shipping_address ||
-                    (order.User?.address
-                      ? `Menggunakan Alamat Profil: ${order.User.address}`
-                      : "Alamat belum tercatat")}
+                  {order.shipping_address || "Alamat belum tercatat"}
                 </p>
                 <p className="text-sm text-darkgray/70">
                   Metode: {order.shipping_method || "N/A"}
                 </p>
 
-                {/* --- TAMBAHAN: Tampilkan Info Resi Jika Ada --- */}
                 {order.shipping_receipt_number && (
                   <div className="mt-2 p-2 bg-lightmauve rounded-md">
                     <p className="text-sm font-medium text-darkgray">
@@ -280,7 +277,7 @@ const OrderDetailModal = ({
                     </p>
                     {order.shipping_receipt_url && (
                       <a
-                        href={buildImageUrl(order.shipping_receipt_url)}
+                        href={getCleanedImageUrl(order.shipping_receipt_url)} // <-- MENGGUNAKAN HELPER RESMI
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-elegantburgundy hover:underline"
@@ -290,8 +287,6 @@ const OrderDetailModal = ({
                     )}
                   </div>
                 )}
-                {/* --- AKHIR TAMBAHAN --- */}
-
                 {order.shipped_at && (
                   <p className="text-sm text-darkgray/70">
                     Dikirim: {formatDate(order.shipped_at)}
@@ -324,7 +319,7 @@ const OrderDetailModal = ({
                       </p>
                     )}
                     <a
-                      href={buildImageUrl(payment.payment_proof_url)}
+                      href={getCleanedImageUrl(payment.payment_proof_url)} // <-- MENGGUNAKAN HELPER RESMI
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-elegantburgundy hover:underline mb-2"
@@ -350,7 +345,7 @@ const OrderDetailModal = ({
                 )}
               </div>
 
-              {/* --- TAMBAHAN: FORM UPLOAD RESI (Hanya Admin & Status 'diproses') --- */}
+              {/* FORM UPLOAD RESI (Admin) */}
               {userRole === "admin" &&
                 isProcessed &&
                 !isCancelled &&
@@ -406,12 +401,11 @@ const OrderDetailModal = ({
                     </form>
                   </div>
                 )}
-              {/* --- AKHIR TAMBAHAN --- */}
 
-              {/* AKSI ADMIN ika 'diproses') */}
+              {/* UBAH STATUS (Admin) */}
               {userRole === "admin" &&
                 !isCancelled &&
-                !isProcessed && // Sembunyikan jika 'diproses'
+                !isProcessed &&
                 currentOrderStatus !== "selesai" && (
                   <div>
                     <h4 className="font-bold text-lg text-darkgray mb-2 border-b pb-2 border-lightmauve">
@@ -448,7 +442,6 @@ const OrderDetailModal = ({
                             {opt.label}
                           </option>
                         ))}
-
                       </select>
                       <button
                         type="submit"
@@ -465,7 +458,7 @@ const OrderDetailModal = ({
                   </div>
                 )}
 
-              {/* BATALKAN PESANAN */}
+              {/* BATALKAN PESANAN (Admin) */}
               {userRole === "admin" &&
                 !isCancelled &&
                 [

@@ -142,6 +142,7 @@ const ListUser = () => {
     { key: 'id', label: 'ID', sortable: true, render: (user) => `#${user.id}` },
     { key: 'name', label: 'Nama Lengkap', sortable: true, render: (user) => `${user.first_name || ''} ${user.last_name || ''}`.trim() || '-' },
     { key: 'username', label: 'Username', sortable: true, render: (user) => user.username || '-' },
+    { key: 'no_telp', label: 'No Telp', sortable: true, render: (user) => user.phone_number || '-' },
     { key: 'email', label: 'Email', sortable: true, render: (user) => user.email || '-' },
     {
       key: 'role', label: 'Role', sortable: true,

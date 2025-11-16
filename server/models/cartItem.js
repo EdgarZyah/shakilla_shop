@@ -4,8 +4,11 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class CartItem extends Model {
     static associate(models) {
+      // TETAP: Terhubung ke Cart
       CartItem.belongsTo(models.Cart, { foreignKey: 'cart_id', as: 'cart' });
-      CartItem.belongsTo(models.Product, { foreignKey: 'product_id', as: 'product' });
+      
+      // DIUBAH: Terhubung ke ProductVariant, bukan Product
+      CartItem.belongsTo(models.ProductVariant, { foreignKey: 'product_variant_id', as: 'productVariant' });
     }
   }
   CartItem.init({
@@ -19,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    product_id: {
+    product_variant_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
@@ -27,11 +30,6 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 1,
-    },
-    // FIX: Mendefinisikan field 'size' secara eksplisit
-    size: { 
-      type: DataTypes.STRING,
-      allowNull: true, // Biarkan NULL jika tidak ada size, tapi defaultnya ada dari frontend
     },
   }, {
     sequelize,

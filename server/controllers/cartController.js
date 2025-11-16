@@ -1,5 +1,7 @@
+// server/controllers/cartController.js
 const db = require('../models/index');
-const { Cart, CartItem, Product } = db;
+// Kita perlu ProductVariant dan Product sekarang
+const { Cart, CartItem, Product, ProductVariant } = db;
 const { Op } = db.Sequelize;
 
 // Fungsi utilitas untuk mendapatkan atau membuat Keranjang User
@@ -11,22 +13,30 @@ const getOrCreateCart = async (userId) => {
     return cart;
 };
 
+// Opsi include untuk keranjang
+const cartIncludeOptions = {
+    model: CartItem,
+    as: 'items',
+    required: false,
+    include: [{
+        model: ProductVariant, // Include varian
+        as: 'productVariant',
+        required: true, // Pastikan varian ada
+        include: [{
+            model: Product, // Include produk induk (untuk nama, gambar)
+            as: 'product',
+            attributes: ['id', 'name', 'thumbnail_url', 'image_url']
+        }]
+    }]
+};
+
 // [USER] Mengambil Keranjang Belanja dan isinya
 exports.getCart = async (req, res) => {
     try {
         const userId = req.user.id;
         const cart = await Cart.findOne({
             where: { user_id: userId },
-            include: [{
-                model: CartItem,
-                as: 'items',
-                required: false,
-                include: [{
-                    model: Product,
-                    as: 'product', // ALIAS HARUS 'product' (huruf kecil)
-                    attributes: ['id', 'name', 'price', 'stock', 'thumbnail_url', 'image_url']
-                }]
-            }]
+            include: [cartIncludeOptions]
         });
 
         if (!cart) {
@@ -36,14 +46,15 @@ exports.getCart = async (req, res) => {
         const items = cart.items || [];
         
         const totalPrice = items.reduce((total, item) => {
-            const price = item.product?.price ? parseFloat(item.product.price) : 0;
+            // Harga sekarang ada di varian
+            const price = item.productVariant?.price ? parseFloat(item.productVariant.price) : 0;
             const qty = item.quantity ? parseInt(item.quantity) : 0;
             return total + (price * qty);
         }, 0);
 
         res.status(200).json({ 
             cartId: cart.id,
-            items: items,
+            items: items, // Frontend harus menyesuaikan dengan struktur baru ini
             totalPrice: parseFloat(totalPrice).toFixed(2),
             totalItems: items.length
         });
@@ -58,44 +69,57 @@ exports.getCart = async (req, res) => {
 exports.addToCart = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { product_id, quantity, size } = req.body; 
+        // HANYA menerima product_variant_id
+        const { product_variant_id, quantity } = req.body; 
 
-        if (!product_id || !quantity) {
-            return res.status(400).json({ message: 'Product ID dan Quantity wajib diisi.' });
+        if (!product_variant_id || !quantity) {
+            return res.status(400).json({ message: 'Product Variant ID dan Quantity wajib diisi.' });
         }
-        if (!size) {
-             return res.status(400).json({ message: 'Ukuran produk wajib diisi.' });
+        
+        const requestedQuantity = parseInt(quantity);
+        
+        // 1. Temukan Varian dan cek stok
+        const variant = await ProductVariant.findByPk(product_variant_id);
+        if (!variant) {
+             return res.status(404).json({ message: 'Varian produk tidak ditemukan.' });
         }
-
-        const product = await Product.findByPk(product_id);
-        if (!product || product.stock < quantity) {
-            return res.status(400).json({ message: 'Produk tidak ditemukan atau stok tidak mencukupi.' });
+        if (variant.stock < requestedQuantity) {
+            return res.status(400).json({ message: 'Stok untuk varian ini tidak mencukupi.' });
         }
 
         const cart = await getOrCreateCart(userId);
         
+        // 2. Cari item di keranjang berdasarkan variant_id
         let cartItem = await CartItem.findOne({
             where: {
                 cart_id: cart.id,
-                product_id: product_id,
-                size: size 
+                product_variant_id: product_variant_id,
             }
         });
 
         if (cartItem) {
-            cartItem.quantity += parseInt(quantity);
+            // Item sudah ada, update kuantitas
+            const newQuantity = cartItem.quantity + requestedQuantity;
+            
+            // Cek stok lagi untuk kuantitas gabungan
+            if (variant.stock < newQuantity) {
+                 return res.status(400).json({ message: `Stok tidak mencukupi. Anda sudah punya ${cartItem.quantity} di keranjang.` });
+            }
+            
+            cartItem.quantity = newQuantity;
             await cartItem.save();
         } else {
+            // Item baru, buat item
             cartItem = await CartItem.create({
                 cart_id: cart.id,
-                product_id: product_id,
-                quantity: parseInt(quantity),
-                size: size 
+                product_variant_id: product_variant_id,
+                quantity: requestedQuantity,
             });
         }
         
+        // Ambil data lengkap untuk dikembalikan ke frontend
         const updatedCartItem = await CartItem.findByPk(cartItem.id, {
-             include: [{ model: Product, as: 'product' }]
+             include: [cartIncludeOptions.include[0]] // Include yang sama dengan getCart
         });
 
         res.status(200).json({ 
@@ -109,7 +133,7 @@ exports.addToCart = async (req, res) => {
     }
 };
 
-// [USER] Memperbarui Kuantitas Item di Keranjang (BARU)
+// [USER] Memperbarui Kuantitas Item di Keranjang
 exports.updateCartItemQuantity = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -122,16 +146,14 @@ exports.updateCartItemQuantity = async (req, res) => {
             return res.status(400).json({ message: 'Kuantitas harus berupa angka positif.' });
         }
 
-        // 1. Temukan cart item dan pastikan milik user yang benar
         const cart = await Cart.findOne({ where: { user_id: userId } });
-        
         if (!cart) {
             return res.status(404).json({ message: 'Keranjang tidak ditemukan.' });
         }
 
         const cartItem = await CartItem.findOne({ 
             where: { id: itemId, cart_id: cart.id },
-            include: [{ model: Product, as: 'product' }] // Untuk cek stok
+            include: [{ model: ProductVariant, as: 'productVariant' }] // Include varian untuk cek stok
         });
 
         if (!cartItem) {
@@ -139,9 +161,9 @@ exports.updateCartItemQuantity = async (req, res) => {
         }
         
         // 2. Cek Stok
-        const product = cartItem.product;
-        if (product.stock < newQuantity) {
-            return res.status(400).json({ message: `Stok produk (${product.stock}) tidak mencukupi untuk kuantitas ${newQuantity}.` });
+        const variant = cartItem.productVariant;
+        if (variant.stock < newQuantity) {
+            return res.status(400).json({ message: `Stok varian (${variant.stock}) tidak mencukupi untuk kuantitas ${newQuantity}.` });
         }
 
         // 3. Update Kuantitas

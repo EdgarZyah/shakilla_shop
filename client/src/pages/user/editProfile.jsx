@@ -1,210 +1,239 @@
+// client/src/pages/user/editProfile.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../layouts/sidebar";
 import { userMenu } from "../../layouts/layoutUser/userMenu";
 import { useNavigate } from "react-router-dom";
-import axiosClient from "../../api/axiosClient"; 
+import axiosClient from "../../api/axiosClient";
 
-const EditProfile = () => {
+const EditProfileUser = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [formData, setFormData] = useState({});
+  
+  // State tetap menggunakan snake_case agar mudah saat fetch data
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    username: "",
+    email: "",
+    phone_number: "", // Sesuai model & migrasi
+    address: "",
+    zip_code: "",
+  });
+  
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [status, setStatus] = useState(null);
-
-  const userId = sessionStorage.getItem('userId');
   const navigate = useNavigate();
 
   useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Asumsi /users/profile mengembalikan data snake_case dari database
+        const response = await axiosClient.get("/users/profile"); 
+        const user = response.data.user;
+        
+        // Set state dengan data dari database
+        setFormData({
+          first_name: user.first_name || "",
+          last_name: user.last_name || "",
+          username: user.username || "",
+          email: user.email || "",
+          phone_number: user.phone_number || "", // Sesuai model
+          address: user.address || "",
+          zip_code: user.zip_code || "",
+        });
+      } catch (err) {
+        setStatus({ type: "error", message: "Gagal memuat data." });
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchUserData();
-  }, [userId]);
+  }, []);
 
-  const fetchUserData = async () => {
-    if (!userId) {
-      setError("User tidak terautentikasi.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      // FIX: Panggil endpoint profil yang benar
-      const response = await axiosClient.get(`/users/profile`);
-      const data = response.data.user;
-
-      setFormData(data);
-      setError(null);
-    } catch (err) {
-      const message = err.response?.data?.message || "Gagal mengambil data profil.";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSaveClick = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
 
-    // Ambil data yang dikirim, menggunakan nama field yang benar sesuai backend (camelCase)
+    // --- PERBAIKAN PENTING ---
+    // Controller Anda mengharapkan camelCase.
+    // Kita harus memetakan state snake_case kita ke payload camelCase.
     const payload = {
-        firstName: formData.first_name,
-        lastName: formData.last_name,
-        username: formData.username,
-        email: formData.email,
-        address: formData.address,
-        zipCode: formData.zip_code,
-    }
+      firstName: formData.first_name,
+      lastName: formData.last_name,
+      username: formData.username,
+      email: formData.email, // Controller juga memvalidasi email
+      address: formData.address,
+      zipCode: formData.zip_code, // Sesuai controller
+      phone: formData.phone_number // Controller mengharapkan 'phone'
+    };
+    // --- AKHIR PERBAIKAN ---
 
     try {
-      // FIX: Panggil endpoint update profil yang benar
-      await axiosClient.put(`/users/profile`, payload);
+      // Kirim payload yang sudah di-map
+      const response = await axiosClient.put("/users/profile", payload); 
       
+      const newName = response.data.user?.first_name || response.data.user?.username;
+      
+      // Update session/cookie (sesuaikan dengan setup Anda)
+      sessionStorage.setItem('userName', newName); 
+      // Cookies.set('userName', newName, { expires: 1, path: '/' }); // Jika pakai Cookies
+
       setStatus({ type: "success", message: "Profil berhasil diperbarui!" });
       setTimeout(() => {
-          navigate("/user/profile");
+        navigate("/user/profile");
       }, 1500);
     } catch (err) {
       const message = err.response?.data?.message || "Gagal memperbarui profil.";
-      setStatus({ type: "error", message: message });
-      console.error("Error updating user data:", err);
+      setStatus({ type: "error", message });
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && !formData.email) {
     return (
       <div className="flex min-h-screen bg-lightmauve items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-elegantburgundy"></div>
-        <span className="ml-4 text-xl font-semibold text-darkgray">Memuat form...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen bg-lightmauve items-center justify-center">
-        <div className="text-center p-8 bg-purewhite rounded-lg shadow">
-          <h1 className="text-2xl font-bold text-elegantburgundy mb-4">Error</h1>
-          <p className="text-darkgray">{error}</p>
-          <button onClick={() => navigate('/user/profile')} className="mt-4 text-elegantburgundy hover:underline">Kembali ke Profil</button>
-        </div>
+        Memuat data...
       </div>
     );
   }
 
   return (
     <div className="py-16 md:py-0 w-screen min-h-screen bg-lightmauve">
-      <Sidebar menu={userMenu} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+      <Sidebar
+        menu={userMenu}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
       <main
         className={`flex-1 p-6 md:p-8 lg:p-10 transition-all duration-300 ease-in-out ${
           isSidebarOpen ? "md:ml-64" : "md:ml-20"
         }`}
       >
-        <div className="max-w-4xl mx-auto bg-purewhite rounded-lg shadow-lg p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-darkgray">Edit Profil</h1>
-            <button
-              onClick={() => navigate("/user/profile")}
-              className="text-darkgray hover:text-elegantburgundy transition"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          {status && (
-            <div className={`p-4 mb-4 text-sm rounded-lg ${status.type === "success" ? "bg-softpink/50 text-darkgray" : "bg-softpink/50 text-elegantburgundy"}`}>
-              {status.message}
-            </div>
-          )}
+        <div className="mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-darkgray">
+            Edit Profil
+          </h1>
+        </div>
 
-          <form onSubmit={handleSaveClick}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+        {status && (
+          <div
+            className={`p-4 mb-4 text-sm rounded-lg ${
+              status.type === "success"
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {status.message}
+          </div>
+        )}
+
+        <div className="bg-purewhite rounded-lg shadow-sm border border-lightmauve p-6 md:p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium text-darkgray">Nama Depan</label>
+                <label className="block text-sm font-medium text-darkgray">
+                  Nama Depan
+                </label>
                 <input
                   type="text"
-                  name="first_name"
-                  value={formData.first_name || ""}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
-                  required
+                  name="first_name" // Input name tetap snake_case
+                  value={formData.first_name} // State value tetap snake_case
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-darkgray">Nama Belakang</label>
+                <label className="block text-sm font-medium text-darkgray">
+                  Nama Belakang
+                </label>
                 <input
                   type="text"
                   name="last_name"
-                  value={formData.last_name || ""}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-darkgray">Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username || ""}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-darkgray">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email || ""}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-darkgray">Alamat</label>
-                <textarea
-                  name="address"
-                  value={formData.address || ""}
-                  onChange={handleInputChange}
-                  rows="3"
-                  className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-darkgray">Kode Pos</label>
-                <input
-                  type="text"
-                  name="zip_code"
-                  value={formData.zip_code || ""}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-lightmauve rounded-md shadow-sm p-2"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("/user/profile")}
-                className="py-2 px-4 border border-lightmauve rounded-md shadow-sm text-sm font-medium text-darkgray hover:bg-lightmauve transition"
-              >
-                Batal
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-darkgray">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-darkgray">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                  disabled // Email tidak boleh diubah
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-darkgray">
+                Nomor Telepon
+              </label>
+              <input
+                type="tel"
+                name="phone_number" // Input name tetap snake_case
+                value={formData.phone_number}
+                onChange={handleChange}
+                placeholder="Contoh: 08123456789"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-darkgray">
+                Alamat
+              </label>
+              <textarea
+                name="address"
+                rows="3"
+                value={formData.address}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              ></textarea>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-darkgray">
+                Kode Pos
+              </label>
+              <input
+                type="text"
+                name="zip_code" // Input name tetap snake_case
+                value={formData.zip_code}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+
+            <div className="text-right">
               <button
                 type="submit"
                 disabled={loading}
-                className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition disabled:opacity-50"
+                className="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-purewhite bg-elegantburgundy hover:bg-softpink disabled:opacity-50"
               >
                 {loading ? "Menyimpan..." : "Simpan Perubahan"}
               </button>
@@ -216,4 +245,4 @@ const EditProfile = () => {
   );
 };
 
-export default EditProfile;
+export default EditProfileUser;

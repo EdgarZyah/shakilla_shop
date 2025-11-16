@@ -64,7 +64,7 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-md">
           <h1 className="text-4xl font-bold mb-2 text-elegantburgundy">Masuk</h1>
-          <p className="text-darkgray mb-8">Masuk ke akun Anda untuk melanjutkan.</p>
+          <p className="text-darkgray mb-8">Dapatkan pengalaman belanja yang lebih mudah dan cepat bersama Shakilla Shop.</p>
 
           {error && <div className="mb-3 text-elegantburgundy bg-softpink p-3 rounded-lg">{error}</div>}
           {success && <div className="mb-3 text-darkgray bg-green-200 p-3 rounded-lg">{success}</div>}

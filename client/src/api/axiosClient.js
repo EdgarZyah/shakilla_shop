@@ -7,10 +7,6 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 // URL Root Server (misal: http://localhost:3001). Ini adalah basis untuk gambar.
 const SERVER_ROOT_URL = API_URL.replace("/api", "");
 
-/**
- * URL Dasar untuk mengambil file statis (misalnya gambar) dari folder server/uploads.
- * Contoh: http://localhost:3001/uploads
- */
 export const IMAGE_BASE_URL = `${SERVER_ROOT_URL}/uploads`; // Menggunakan SERVER_ROOT_URL
 
 const axiosClient = axios.create({
@@ -46,12 +42,8 @@ axiosClient.interceptors.response.use(
   }
 );
 
-/**
- * Fungsi ini menghasilkan URL dasar server (misal: http://localhost:3001)
- * untuk memuat file statis lainnya jika dibutuhkan.
- */
 export const getServerUrl = () => {
   return SERVER_ROOT_URL;
 };
 
-export default axiosClient; // PENTING: Export default agar bisa diimpor
+export default axiosClient;

@@ -1,3 +1,4 @@
+// server/migrations/YYYYMMDDHHMMSS-create-product.js
 'use strict';
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
@@ -14,42 +15,33 @@ module.exports = {
         allowNull: false,
       },
       description: {
-        type: Sequelize.TEXT,
-      },
-      price: {
-        type: Sequelize.DECIMAL(12, 2),
-        allowNull: false,
-      },
-      stock: {
-        type: Sequelize.INTEGER,
-        defaultValue: 0,
+        type: Sequelize.TEXT
       },
       category_id: { // Foreign Key ke Categories
         type: Sequelize.INTEGER,
+        allowNull: false,
         references: {
-          model: 'Categories', 
+          model: 'Categories',
           key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'SET NULL',
+        onDelete: 'CASCADE',
       },
       thumbnail_url: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING
       },
       image_url: {
-        type: Sequelize.STRING,
+        type: Sequelize.TEXT // Menyimpan JSON String
       },
-      createdAt: {
+      created_at: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-        field: 'created_at'
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
-      updatedAt: {
+      updated_at: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-        field: 'updated_at'
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
     });
   },
