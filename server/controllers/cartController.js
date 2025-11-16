@@ -1,6 +1,5 @@
 // server/controllers/cartController.js
 const db = require('../models/index');
-// Kita perlu ProductVariant dan Product sekarang
 const { Cart, CartItem, Product, ProductVariant } = db;
 const { Op } = db.Sequelize;
 
@@ -13,17 +12,16 @@ const getOrCreateCart = async (userId) => {
     return cart;
 };
 
-// Opsi include untuk keranjang
 const cartIncludeOptions = {
     model: CartItem,
     as: 'items',
     required: false,
     include: [{
-        model: ProductVariant, // Include varian
+        model: ProductVariant,
         as: 'productVariant',
-        required: true, // Pastikan varian ada
+        required: true,
         include: [{
-            model: Product, // Include produk induk (untuk nama, gambar)
+            model: Product,
             as: 'product',
             attributes: ['id', 'name', 'thumbnail_url', 'image_url']
         }]
@@ -46,7 +44,6 @@ exports.getCart = async (req, res) => {
         const items = cart.items || [];
         
         const totalPrice = items.reduce((total, item) => {
-            // Harga sekarang ada di varian
             const price = item.productVariant?.price ? parseFloat(item.productVariant.price) : 0;
             const qty = item.quantity ? parseInt(item.quantity) : 0;
             return total + (price * qty);
@@ -54,7 +51,7 @@ exports.getCart = async (req, res) => {
 
         res.status(200).json({ 
             cartId: cart.id,
-            items: items, // Frontend harus menyesuaikan dengan struktur baru ini
+            items: items,
             totalPrice: parseFloat(totalPrice).toFixed(2),
             totalItems: items.length
         });
@@ -69,7 +66,6 @@ exports.getCart = async (req, res) => {
 exports.addToCart = async (req, res) => {
     try {
         const userId = req.user.id;
-        // HANYA menerima product_variant_id
         const { product_variant_id, quantity } = req.body; 
 
         if (!product_variant_id || !quantity) {
@@ -78,7 +74,6 @@ exports.addToCart = async (req, res) => {
         
         const requestedQuantity = parseInt(quantity);
         
-        // 1. Temukan Varian dan cek stok
         const variant = await ProductVariant.findByPk(product_variant_id);
         if (!variant) {
              return res.status(404).json({ message: 'Varian produk tidak ditemukan.' });
@@ -88,8 +83,7 @@ exports.addToCart = async (req, res) => {
         }
 
         const cart = await getOrCreateCart(userId);
-        
-        // 2. Cari item di keranjang berdasarkan variant_id
+
         let cartItem = await CartItem.findOne({
             where: {
                 cart_id: cart.id,
@@ -98,10 +92,8 @@ exports.addToCart = async (req, res) => {
         });
 
         if (cartItem) {
-            // Item sudah ada, update kuantitas
             const newQuantity = cartItem.quantity + requestedQuantity;
             
-            // Cek stok lagi untuk kuantitas gabungan
             if (variant.stock < newQuantity) {
                  return res.status(400).json({ message: `Stok tidak mencukupi. Anda sudah punya ${cartItem.quantity} di keranjang.` });
             }
@@ -109,7 +101,6 @@ exports.addToCart = async (req, res) => {
             cartItem.quantity = newQuantity;
             await cartItem.save();
         } else {
-            // Item baru, buat item
             cartItem = await CartItem.create({
                 cart_id: cart.id,
                 product_variant_id: product_variant_id,
@@ -117,9 +108,8 @@ exports.addToCart = async (req, res) => {
             });
         }
         
-        // Ambil data lengkap untuk dikembalikan ke frontend
         const updatedCartItem = await CartItem.findByPk(cartItem.id, {
-             include: [cartIncludeOptions.include[0]] // Include yang sama dengan getCart
+             include: [cartIncludeOptions.include[0]]
         });
 
         res.status(200).json({ 
@@ -137,8 +127,8 @@ exports.addToCart = async (req, res) => {
 exports.updateCartItemQuantity = async (req, res) => {
     try {
         const userId = req.user.id;
-        const itemId = req.params.itemId; // Item ID (cart_item ID)
-        const { quantity } = req.body; // New quantity
+        const itemId = req.params.itemId;
+        const { quantity } = req.body;
 
         const newQuantity = parseInt(quantity);
 
@@ -153,20 +143,18 @@ exports.updateCartItemQuantity = async (req, res) => {
 
         const cartItem = await CartItem.findOne({ 
             where: { id: itemId, cart_id: cart.id },
-            include: [{ model: ProductVariant, as: 'productVariant' }] // Include varian untuk cek stok
+            include: [{ model: ProductVariant, as: 'productVariant' }]
         });
 
         if (!cartItem) {
             return res.status(404).json({ message: 'Item keranjang tidak ditemukan.' });
         }
         
-        // 2. Cek Stok
         const variant = cartItem.productVariant;
         if (variant.stock < newQuantity) {
             return res.status(400).json({ message: `Stok varian (${variant.stock}) tidak mencukupi untuk kuantitas ${newQuantity}.` });
         }
 
-        // 3. Update Kuantitas
         cartItem.quantity = newQuantity;
         await cartItem.save();
 

@@ -1,14 +1,11 @@
 // server/controllers/productController.js
 const db = require("../models/index");
-const { Product, Category, ProductVariant, Sequelize } = db; // Tambahkan ProductVariant dan Sequelize
+const { Product, Category, ProductVariant, Sequelize } = db;
 const { Op } = db.Sequelize;
-const sequelize = db.sequelize; // Dapatkan instance sequelize
-
-// Konfigurasi pagination default
+const sequelize = db.sequelize; 
 const defaultPage = 1;
 const defaultLimit = 10;
 
-// Opsi include standar untuk varian
 const includeVariants = {
   model: ProductVariant,
   as: 'variants',
@@ -51,10 +48,10 @@ exports.getProducts = async (req, res) => {
           as: "category",
           attributes: ["id", "name"],
         },
-        includeVariants, // Masukkan data varian (harga, stok, dll)
+        includeVariants,
       ],
       order: [["createdAt", "DESC"]],
-      distinct: true, // Penting untuk pagination yang benar saat menggunakan include
+      distinct: true,
     });
 
     res.status(200).json({
@@ -81,7 +78,7 @@ exports.getProductDetail = async (req, res) => {
           as: "category",
           attributes: ["id", "name"],
         },
-        includeVariants, // Masukkan data varian (harga, stok, dll)
+        includeVariants,
       ],
     });
 
@@ -102,13 +99,11 @@ exports.getProductDetail = async (req, res) => {
 
 // [ADMIN] Tambah Produk Baru
 exports.createProduct = async (req, res) => {
-  const t = await sequelize.transaction(); // Mulai transaksi
+  const t = await sequelize.transaction();
   try {
-    // 1. Ambil data produk (induk)
     const { name, description, category_id, variants } = req.body;
     const files = req.files;
 
-    // 2. Validasi data
     if (
       !name ||
       !category_id ||
@@ -121,7 +116,6 @@ exports.createProduct = async (req, res) => {
         .json({ message: "Nama, Kategori, dan Thumbnail wajib diisi." });
     }
 
-    // 3. Validasi Varian
     let parsedVariants = [];
     if (typeof variants === 'string') {
         try {
@@ -130,35 +124,31 @@ exports.createProduct = async (req, res) => {
             return res.status(400).json({ message: "Format data Varian tidak valid (JSON)." });
         }
     } else if (Array.isArray(variants)) {
-        parsedVariants = variants; // Jika frontend mengirim array objek (misal: dari addProduct baru)
+        parsedVariants = variants;
     }
 
     if (!parsedVariants || parsedVariants.length === 0) {
         return res.status(400).json({ message: "Produk harus memiliki setidaknya satu varian (harga/stok)." });
     }
     
-    // Validasi setiap varian
     for(const v of parsedVariants) {
         if (v.price === undefined || v.stock === undefined) {
             return res.status(400).json({ message: "Setiap varian harus memiliki 'price' dan 'stock'." });
         }
     }
 
-    // Cek Kategori
     const category = await Category.findByPk(category_id, { transaction: t });
     if (!category) {
       await t.rollback();
       return res.status(400).json({ message: "Kategori tidak valid." });
     }
 
-    // 4. Proses Gambar (Sama seperti sebelumnya)
     const thumbnailFile = files.thumbnail[0].filename;
     const thumbnail_url = `/uploads/products/${thumbnailFile}`;
     const image_url_array = files.images
       ? files.images.map((file) => `/uploads/products/${file.filename}`)
       : [];
 
-    // 5. Buat Produk (Induk)
     const newProduct = await Product.create({
       name,
       description,
@@ -168,7 +158,6 @@ exports.createProduct = async (req, res) => {
         image_url_array.length > 0 ? JSON.stringify(image_url_array) : null,
     }, { transaction: t });
 
-    // 6. Buat Varian Produk (Anak)
     const variantsData = parsedVariants.map(v => ({
       product_id: newProduct.id,
       color: v.color || null,
@@ -180,10 +169,8 @@ exports.createProduct = async (req, res) => {
 
     await ProductVariant.bulkCreate(variantsData, { transaction: t });
 
-    // 7. Commit Transaksi
     await t.commit();
-    
-    // Ambil data lengkap untuk dikembalikan
+
     const finalProduct = await Product.findByPk(newProduct.id, {
         include: [includeVariants, 'category']
     });
@@ -194,7 +181,7 @@ exports.createProduct = async (req, res) => {
     });
 
   } catch (error) {
-    await t.rollback(); // Batalkan transaksi jika ada error
+    await t.rollback();
     if (
       error.name === "MulterError" ||
       error.message.includes("Hanya file gambar")
@@ -214,14 +201,13 @@ exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // 1. Ambil data
     const {
       name,
       description,
       category_id,
       existing_images,
       existing_thumbnail,
-      variants, // Ini akan jadi array varian
+      variants,
     } = req.body;
     const files = req.files;
 
@@ -231,17 +217,14 @@ exports.updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Produk tidak ditemukan." });
     }
 
-    // 2. Update data induk (Product)
     const updateData = { name, description };
 
-    // Handle Thumbnail
     if (files && files.thumbnail && files.thumbnail.length > 0) {
       updateData.thumbnail_url = `/uploads/products/${files.thumbnail[0].filename}`;
     } else if (existing_thumbnail !== undefined) {
       updateData.thumbnail_url = existing_thumbnail;
     }
 
-    // Handle Images
     let currentImages = [];
     try {
       if (typeof existing_images === 'string') {
@@ -271,7 +254,6 @@ exports.updateProduct = async (req, res) => {
 
     await product.update(updateData, { transaction: t });
 
-    // 3. Update Varian (Logika Rumit)
     let parsedVariants = [];
      if (typeof variants === 'string') {
         try {
@@ -289,19 +271,16 @@ exports.updateProduct = async (req, res) => {
         return res.status(400).json({ message: "Produk harus memiliki setidaknya satu varian." });
     }
 
-    // Ambil ID varian yang ada dari frontend
     const incomingVariantIds = parsedVariants.filter(v => v.id).map(v => v.id);
 
-    // Hapus varian yang tidak ada di data baru
     await ProductVariant.destroy({
       where: {
         product_id: id,
-        id: { [Op.notIn]: incomingVariantIds } // Hapus jika ID-nya TIDAK ADA di data baru
+        id: { [Op.notIn]: incomingVariantIds }
       },
       transaction: t
     });
 
-    // Loop data varian baru untuk update atau create
     for (const v of parsedVariants) {
        if (v.price === undefined || v.stock === undefined) {
             await t.rollback();
@@ -318,13 +297,11 @@ exports.updateProduct = async (req, res) => {
       };
 
       if (v.id) {
-        // Varian sudah ada, lakukan UPDATE
         await ProductVariant.update(variantData, {
           where: { id: v.id, product_id: id },
           transaction: t
         });
       } else {
-        // Varian baru, lakukan CREATE
         await ProductVariant.create(variantData, { transaction: t });
       }
     }
@@ -360,7 +337,6 @@ exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Dengan onDelete: 'CASCADE' di migrasi, varian akan ikut terhapus
     const deletedRows = await Product.destroy({ where: { id } });
 
     if (deletedRows === 0) {

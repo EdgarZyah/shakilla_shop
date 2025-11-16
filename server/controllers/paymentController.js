@@ -75,8 +75,6 @@ exports.uploadPaymentProof = async (req, res) => {
   }
 };
 
-// ... (exports.getPendingPayments dan exports.verifyPayment tetap sama)
-
 // [ADMIN] Mendapatkan daftar pembayaran yang perlu diverifikasi
 exports.getPendingPayments = async (req, res) => {
   try {
@@ -109,7 +107,7 @@ exports.getPendingPayments = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   const t = await db.sequelize.transaction();
   try {
-    const { id } = req.params; // Payment ID
+    const { id } = req.params; 
     const payment = await Payment.findByPk(id, { transaction: t });
 
     if (!payment) {

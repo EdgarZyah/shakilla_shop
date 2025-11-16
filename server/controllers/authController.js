@@ -14,10 +14,9 @@ exports.register = async (req, res) => {
       password,
       address,
       zip_code,
-      phone_number, // <-- TAMBAHAN BARU
+      phone_number,
     } = req.body;
 
-    // Validasi diperbarui (sesuai frontend, nomor hp wajib)
     if (
       !email ||
       !password ||
@@ -29,7 +28,6 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "Semua field wajib diisi." });
     }
 
-    // Cek duplikat email/username
     const existingUser = await User.findOne({
       where: {
         [Op.or]: [{ email }, { username }],
@@ -41,12 +39,10 @@ exports.register = async (req, res) => {
       return res.status(409).json({ message: `${field} sudah terdaftar.` });
     }
 
-    // --- VALIDASI BARU UNTUK NOMOR HP ---
     const existingPhone = await User.findOne({ where: { phone_number } });
     if (existingPhone) {
       return res.status(409).json({ message: "Nomor telepon sudah terdaftar." });
     }
-    // --- AKHIR VALIDASI ---
 
     const newUser = await User.create({
       first_name: first_name,
@@ -56,7 +52,7 @@ exports.register = async (req, res) => {
       password,
       address,
       zip_code,
-      phone_number: phone_number, // <-- TAMBAHAN BARU
+      phone_number: phone_number,
     });
 
     const token = jwt.sign(
@@ -67,7 +63,6 @@ exports.register = async (req, res) => {
       }
     );
 
-    // Respons ini sudah benar untuk auto-login di frontend
     res.status(201).json({
       message: "Pendaftaran berhasil!",
       user: {
@@ -139,7 +134,6 @@ exports.login = async (req, res) => {
 
 // Fungsi untuk mendapatkan data user berdasarkan token yang aktif
 exports.getProfile = (req, res) => {
-  // req.user di-populate oleh middleware 'authenticate'
   res.status(200).json({
     message: "Profile berhasil diambil.",
     user: {
@@ -151,7 +145,7 @@ exports.getProfile = (req, res) => {
       address: req.user.address,
       zip_code: req.user.zip_code,
       username: req.user.username,
-      phone_number: req.user.phone_number, // <-- TAMBAHAN BARU
+      phone_number: req.user.phone_number,
     },
   });
 };

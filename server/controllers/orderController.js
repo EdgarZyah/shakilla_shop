@@ -1,8 +1,7 @@
 // server/controllers/orderController.js
 const db = require("../models/index");
-const ExcelJS = require("exceljs"); // Pastikan ini sudah di-import
+const ExcelJS = require("exceljs");
 
-// Pastikan semua model yang diperlukan di-impor
 const {
   Order,
   OrderItem,
@@ -16,7 +15,6 @@ const {
 const { sequelize } = db;
 const { Op } = db.Sequelize;
 
-// --- Helper Include (Diperbarui untuk Varian & Data User Lengkap) ---
 const orderIncludeOptions = (includeUser = false) => {
   const includes = [
     {
@@ -25,12 +23,12 @@ const orderIncludeOptions = (includeUser = false) => {
       required: false,
       include: [
         {
-          model: ProductVariant, // OrderItem sekarang terhubung ke Varian
+          model: ProductVariant,
           as: "productVariant",
           required: false,
           include: [
             {
-              model: Product, // Varian terhubung ke Produk (induk)
+              model: Product,
               as: "product",
               attributes: ["id", "name", "thumbnail_url"],
             },
@@ -49,7 +47,6 @@ const orderIncludeOptions = (includeUser = false) => {
       model: User,
       as: "user",
       attributes: [
-        // <-- Menambahkan data user lengkap
         "id",
         "first_name",
         "last_name",
@@ -65,14 +62,13 @@ const orderIncludeOptions = (includeUser = false) => {
   return includes;
 };
 
-// --- Fungsi Checkout (Diperbarui untuk Varian) ---
+// --- Fungsi Checkout ---
 exports.checkout = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const userId = req.user.id;
     const { shipping_address, shipping_method, shipping_cost } = req.body;
 
-    // Validasi input shipping
     if (!shipping_address) {
       await t.rollback();
       return res
@@ -91,7 +87,6 @@ exports.checkout = async (req, res) => {
       return res.status(400).json({ message: "Biaya ongkir tidak valid." });
     }
 
-    // 1. Ambil Keranjang dengan Varian
     const cart = await Cart.findOne({
       where: { user_id: userId },
       include: [
@@ -121,7 +116,6 @@ exports.checkout = async (req, res) => {
     const orderItemsData = [];
     const stockUpdates = [];
 
-    // 2. Loop melalui item keranjang (yang berisi varian)
     for (const item of cart.items) {
       const variant = item.productVariant;
 
@@ -144,7 +138,6 @@ exports.checkout = async (req, res) => {
         });
       }
 
-      // 3. Cek Stok di Varian
       if (itemStock < itemQty) {
         await t.rollback();
         return res.status(400).json({
@@ -156,16 +149,14 @@ exports.checkout = async (req, res) => {
 
       total_price += itemQty * itemPrice;
 
-      // 4. Siapkan data OrderItem (terhubung ke variant_id)
       orderItemsData.push({
         product_variant_id: variant.id,
         quantity: itemQty,
-        price: itemPrice.toFixed(2), // "Kunci" harga saat checkout
+        price: itemPrice.toFixed(2),
       });
 
-      // 5. Siapkan data update stok
       stockUpdates.push({
-        id: variant.id, // ID Varian
+        id: variant.id, 
         newStock: itemStock - itemQty,
       });
     }
@@ -176,7 +167,6 @@ exports.checkout = async (req, res) => {
       parseFloat(finalSubtotal) + parseFloat(finalShippingCost)
     ).toFixed(2);
 
-    // 6. Buat Order (Induk)
     const newOrder = await Order.create(
       {
         user_id: userId,
@@ -190,29 +180,24 @@ exports.checkout = async (req, res) => {
       { transaction: t }
     );
 
-    // 7. Buat OrderItems (Anak)
     const itemsWithOrderId = orderItemsData.map((item) => ({
       ...item,
       order_id: newOrder.id,
     }));
     await OrderItem.bulkCreate(itemsWithOrderId, { transaction: t });
 
-    // 8. Update Stok Varian
     for (const update of stockUpdates) {
       await ProductVariant.update(
-        // Update tabel ProductVariant
         { stock: update.newStock },
         { where: { id: update.id }, transaction: t }
       );
     }
 
-    // 9. Hapus Keranjang
     await CartItem.destroy({ where: { cart_id: cart.id }, transaction: t });
 
     await t.commit();
 
     res.status(201).json({
-      // Perbaikan: status 201 (created) lebih tepat
       message: "Checkout berhasil! Order menunggu pembayaran.",
       order: newOrder,
     });
@@ -226,8 +211,7 @@ exports.checkout = async (req, res) => {
   }
 };
 
-// --- Fungsi Lainnya (dari file Anda) ---
-
+// Fetch Orders
 exports.getOrders = async (req, res) => {
   try {
     const isAdmin = req.user.role === "admin";
@@ -242,7 +226,7 @@ exports.getOrders = async (req, res) => {
 
     const orders = await Order.findAll({
       where: whereCondition,
-      include: orderIncludeOptions(true), // Menggunakan helper baru
+      include: orderIncludeOptions(true),
       order: [["created_at", "DESC"]],
     });
 
@@ -259,6 +243,7 @@ exports.getOrders = async (req, res) => {
   }
 };
 
+// Fetch Order Detail
 exports.getOrderDetail = async (req, res) => {
   try {
     const { id } = req.params;
@@ -272,7 +257,7 @@ exports.getOrderDetail = async (req, res) => {
 
     const order = await Order.findOne({
       where: whereCondition,
-      include: orderIncludeOptions(true), // Menggunakan helper baru
+      include: orderIncludeOptions(true), 
     });
 
     if (!order) {
@@ -426,9 +411,7 @@ exports.shipOrder = async (req, res) => {
   }
 };
 
-// ==========================================================
-// --- [GANTI FUNGSI INI] FUNGSI EXPORT EXCEL (ADMIN) ---
-// ==========================================================
+// FUNGSI EXPORT EXCEL (ADMIN)
 
 exports.exportOrdersToExcel = async (req, res) => {
   if (req.user.role !== "admin") {
@@ -459,7 +442,6 @@ exports.exportOrdersToExcel = async (req, res) => {
       };
     }
 
-    // 1. Ambil semua data order
     const orders = await Order.findAll({
       where: whereCondition,
       include: orderIncludeOptions(true),
@@ -472,7 +454,6 @@ exports.exportOrdersToExcel = async (req, res) => {
         .json({ message: "Tidak ada data order ditemukan untuk diekspor." });
     }
 
-    // 2. Hitung Total Pendapatan dari data yang difilter
     let totalPendapatanBersih = 0;
     let totalPendapatanPending = 0;
 
@@ -494,14 +475,12 @@ exports.exportOrdersToExcel = async (req, res) => {
       }
     });
 
-    // 3. Buat Workbook dan Worksheet Excel
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Admin E-commerce";
     workbook.lastModifiedBy = "Sistem E-commerce";
     workbook.created = new Date();
     const worksheet = workbook.addWorksheet("Laporan Pesanan");
 
-    // 4. Tentukan Kolom (Header) - INI DILAKUKAN PERTAMA
     worksheet.columns = [
       { header: "No.", key: "no", width: 5 },
       { header: "ID Pelanggan", key: "user_id", width: 15 },
@@ -536,14 +515,13 @@ exports.exportOrdersToExcel = async (req, res) => {
       { header: "Status Pesanan", key: "order_status", width: 20 },
     ];
 
-    // 5. Styling Header (Sekarang di baris 1)
     const headerRow = worksheet.getRow(1);
     headerRow.eachCell((cell) => {
       cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "FF007BFF" }, // Biru
+        fgColor: { argb: "FF007BFF" },
       };
       cell.alignment = {
         vertical: "middle",
@@ -555,9 +533,7 @@ exports.exportOrdersToExcel = async (req, res) => {
       };
     });
 
-    // 6. Isi Data ke Baris (Mulai dari baris 2)
     orders.forEach((order, index) => {
-      // Gabungkan detail item menjadi satu string
       const itemsDetail = order.items
         .map((item) => {
           const variant = item.productVariant;
@@ -572,7 +548,7 @@ exports.exportOrdersToExcel = async (req, res) => {
             item.quantity
           }x | Rp ${parseFloat(item.price).toLocaleString("id-ID")}`;
         })
-        .join("\n"); // Pisahkan tiap item dengan baris baru
+        .join("\n");
 
       worksheet.addRow({
         no: index + 1,
@@ -594,9 +570,8 @@ exports.exportOrdersToExcel = async (req, res) => {
       });
     });
 
-    // 7. Atur alignment untuk sel data (agar rapi)
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-      if (rowNumber > 1) { // Mulai dari baris 2 (setelah header)
+      if (rowNumber > 1) {
         row.getCell("shipping_address").alignment = {
           wrapText: true,
           vertical: "top",
@@ -610,24 +585,19 @@ exports.exportOrdersToExcel = async (req, res) => {
       }
     });
 
-    // --- [BARU] Tambahkan Baris Total Pendapatan di Bawah ---
-    
-    // Tambahkan baris kosong sebagai pemisah
     worksheet.addRow([]);
 
-    // Definisikan style untuk total
     const stylePendapatan = {
-      font: { bold: true, size: 14, color: { argb: "FF008000" } }, // Hijau
+      font: { bold: true, size: 14, color: { argb: "FF008000" } },
     };
     const stylePendapatanPending = {
-      font: { bold: true, size: 14, color: { argb: "FFFFA500" } }, // Oranye
+      font: { bold: true, size: 14, color: { argb: "FFFFA500" } },
     };
     const styleNominal = {
       numFmt: '"Rp"#,##0.00',
       font: { bold: true, size: 14 },
     };
 
-    // Tambahkan baris pending (menggunakan sel A dan B)
     const rowPending = worksheet.addRow([
       "Total Pendapatan (Pending)",
       totalPendapatanPending,
@@ -638,7 +608,6 @@ exports.exportOrdersToExcel = async (req, res) => {
       font: { ...styleNominal.font, color: { argb: "FFFFA500" } },
     };
     
-    // Tambahkan baris bersih (menggunakan sel A dan B)
     const rowBersih = worksheet.addRow([
       "Total Pendapatan Akhir (Selesai)",
       totalPendapatanBersih,
@@ -648,9 +617,7 @@ exports.exportOrdersToExcel = async (req, res) => {
       ...styleNominal,
       font: { ...styleNominal.font, color: { argb: "FF008000" } },
     };
-    // --- [AKHIR PERUBAHAN] ---
 
-    // 8. Set Header untuk download file
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -661,7 +628,6 @@ exports.exportOrdersToExcel = async (req, res) => {
       `attachment; filename="Laporan_Pesanan_${timestamp}.xlsx"`
     );
 
-    // 9. Tulis workbook ke response
     await workbook.xlsx.write(res);
     res.status(200).end();
   } catch (error) {

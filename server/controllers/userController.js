@@ -7,7 +7,7 @@ const { Op } = db.Sequelize;
 exports.getProfile = async (req, res) => {
     try {
         const userProfile = await User.findByPk(req.user.id, {
-            attributes: { exclude: ['password'] } // Otomatis mengambil phone_number
+            attributes: { exclude: ['password'] }
         });
 
         if (!userProfile) {
@@ -27,7 +27,6 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
-        // 1. Terima 'phone' dari req.body (sesuai frontend)
         const { firstName, lastName, username, email, password, address, zipCode, phone } = req.body;
 
         const user = await User.findByPk(userId);
@@ -36,12 +35,11 @@ exports.updateProfile = async (req, res) => {
             return res.status(404).json({ message: 'Pengguna tidak ditemukan.' });
         }
 
-        // Cek duplikasi email/username
         if(email || username) {
              const existingUser = await User.findOne({
                 where: {
                     [Op.or]: [{ email: email || null }, { username: username || null }],
-                    id: { [Op.ne]: userId } // Kecuali ID sendiri
+                    id: { [Op.ne]: userId } 
                 }
             });
             if (existingUser) {
@@ -50,12 +48,10 @@ exports.updateProfile = async (req, res) => {
             }
         }
 
-        // --- VALIDASI BARU UNTUK NOMOR HP ---
-        // Cek 'phone' (dari req.body) terhadap 'phone_number' (di DB)
         if (phone && phone !== user.phone_number) { 
             const existingPhone = await User.findOne({
                 where: {
-                    phone_number: phone, // Cek di kolom 'phone_number'
+                    phone_number: phone,
                     id: { [Op.ne]: userId }
                 }
             });
@@ -63,9 +59,7 @@ exports.updateProfile = async (req, res) => {
                 return res.status(409).json({ message: "Nomor telepon sudah digunakan oleh pengguna lain." });
             }
         }
-        // --- AKHIR VALIDASI ---
 
-        // Siapkan data yang akan diupdate
         const updateData = {
             first_name: firstName || user.first_name,
             last_name: lastName || user.last_name,
@@ -73,12 +67,9 @@ exports.updateProfile = async (req, res) => {
             email: email || user.email,
             address: address || user.address,
             zip_code: zipCode || user.zip_code,
-            // --- PERBAIKAN UTAMA DI SINI ---
-            // Simpan 'phone' (dari req.body) ke 'phone_number' (di DB)
             phone_number: phone || user.phone_number,
         };
 
-        // Jika password diisi, password akan otomatis di-hash
         if (password) {
             updateData.password = password;
         }
@@ -104,7 +95,7 @@ exports.updateProfile = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await User.findAll({
-            attributes: { exclude: ['password'] }, // Otomatis mengambil phone_number
+            attributes: { exclude: ['password'] },
             order: [['created_at', 'DESC']]
         });
         res.status(200).json({ users });
@@ -118,10 +109,8 @@ exports.getUserDetail = async (req, res) => {
     try {
         const { id } = req.params;
         const user = await User.findByPk(id, {
-            attributes: { exclude: ['password'] }, // Otomatis mengambil phone_number
+            attributes: { exclude: ['password'] }, 
             include: [
-                // { model: Cart, as: 'carts' }, // Pastikan relasi 'carts' ada di model User
-                // { model: Order, as: 'orders' }
             ]
         });
 
@@ -196,7 +185,7 @@ exports.updateUserPassword = async (req, res) => {
         }
         
         user.password = newPassword;
-        await user.save(); // save() akan memicu hook hash password
+        await user.save();
 
         res.status(200).json({ 
             message: 'Password berhasil diperbarui.'
