@@ -30,7 +30,7 @@ const Card = ({ product }) => {
   const isOutOfStock = totalStock === 0;
 
   return (
-    <div className="relative flex w-full max-w-xs flex-col overflow-hidden rounded-lg border border-lightmauve bg-purewhite shadow-md transition-transform duration-300 hover:shadow-xl hover:-translate-y-1">
+    <div className="relative m-auto flex w-full max-w-xs flex-col overflow-hidden rounded-lg border border-lightmauve bg-purewhite shadow-md transition-transform duration-300 hover:shadow-xl hover:-translate-y-1">
       <Link
         className="relative mx-3 mt-3 flex h-60 overflow-hidden rounded-xl"
         to={`/productpage/${product.id}`}

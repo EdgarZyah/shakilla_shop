@@ -17,7 +17,7 @@ const ProductDisplay = ({ products = [], onAddToCart }) => {
   }
 
   return (
-    <div className="h-full bg-lightmauve">
+    <div className="h-full mx-auto bg-lightmauve">
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
           <h2 className="text-4xl font-extrabold tracking-tight text-elegantburgundy sm:text-5xl">
@@ -28,7 +28,7 @@ const ProductDisplay = ({ products = [], onAddToCart }) => {
           </p>
         </div>
 
-        <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
+        <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
           {displayedProducts.map((product) => (
             <Card
               key={product.id}
