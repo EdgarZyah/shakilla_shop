@@ -2,6 +2,8 @@
 const db = require("../models/index");
 const { Payment, Order } = db;
 const { Op } = db.Sequelize;
+// [BARU] Impor service email
+const { sendAdminPaymentNotificationEmail } = require('../services/emailService');
 
 // [USER] Mengunggah Bukti Pembayaran
 exports.uploadPaymentProof = async (req, res) => {
@@ -27,7 +29,16 @@ exports.uploadPaymentProof = async (req, res) => {
 
     const orderId = parseInt(order_id);
 
-    const order = await Order.findByPk(orderId);
+    // [MODIFIKASI] Tambahkan 'include' untuk mengambil data User
+    const order = await Order.findByPk(orderId, {
+      include: [{ 
+        model: db.User, 
+        as: 'user', 
+        attributes: ['first_name', 'last_name', 'email'] 
+      }]
+    });
+    // ---
+
     if (!order || order.user_id !== userId) {
       return res
         .status(404)
@@ -51,6 +62,13 @@ exports.uploadPaymentProof = async (req, res) => {
 
     order.order_status = "menunggu verifikasi";
     await order.save();
+
+    // [BARU] Panggil fungsi notifikasi email
+    // Kita panggil tanpa 'await' (fire-and-forget) 
+    // agar respons ke user tidak tertunda jika pengiriman email lambat.
+    // Error logging sudah ditangani di dalam emailService.
+    sendAdminPaymentNotificationEmail(order, payment);
+    // ---
 
     res
       .status(200)
