@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 const ProductDisplay = ({ products = [], onAddToCart }) => {
   // Batasi produk yang ditampilkan maksimal 8 item
-  const displayedProducts = products.slice(0, 8);
+  const displayedProducts = products.slice(0, 4);
 
   if (!Array.isArray(products) || products.length === 0) {
     return (
