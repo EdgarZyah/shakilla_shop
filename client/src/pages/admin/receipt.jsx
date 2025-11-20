@@ -9,6 +9,7 @@ import axiosClient from "../../api/axiosClient";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
+  // Pastikan format tanggal aman untuk Safari/Firefox (ganti spasi dengan T)
   const safeDateString = dateString.replace(" ", "T");
   const options = {
     year: "numeric",
@@ -26,7 +27,7 @@ const formatDate = (dateString) => {
   }
 };
 
-// Helper untuk sorting
+// Helper untuk sorting nested object (misal: user.email)
 const getNestedValue = (obj, path) =>
   path
     .split(".")
@@ -49,17 +50,19 @@ const Receipt = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // --- [DIUBAH] State untuk Search, Filter & Sort ---
+  // --- State Filter & Search ---
   const [searchTerm, setSearchTerm] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [filterStatus, setFilterStatus] = useState("");
+  
+  // [BARU] State untuk Filter Tanggal
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  // --------------------------------
 
-  // --- [BARU] State untuk Filter Status & Export ---
-  const [filterStatus, setFilterStatus] = useState(""); // <-- State untuk dropdown status
-  const [isExporting, setIsExporting] = useState(false); // <-- State loading export
-  // --- Akhir State Baru ---
-
+  const [isExporting, setIsExporting] = useState(false);
   const userRole = sessionStorage.getItem("userRole");
 
   useEffect(() => {
@@ -97,7 +100,6 @@ const Receipt = () => {
       const message =
         err.response?.data?.message || "Gagal mengambil detail pesanan.";
       alert(message);
-      console.error("Error fetching order detail:", err);
     } finally {
       setModalLoading(false);
     }
@@ -154,7 +156,6 @@ const Receipt = () => {
     }
   };
 
-  // --- [PERBAIKAN SYNTAX] ---
   const handleShipOrder = async (orderId, formData) => {
     setModalLoading(true);
     setShipStatus({ type: "loading", message: "Menyimpan resi..." });
@@ -166,14 +167,13 @@ const Receipt = () => {
       await fetchOrders();
       const updatedOrderRes = await axiosClient.get(`/orders/${orderId}`);
       setSelectedOrder(updatedOrderRes.data.order);
-    } catch (err) { 
+    } catch (err) {
       const message = err.response?.data?.message || "Gagal menyimpan resi.";
       setShipStatus({ type: "error", message: message });
-    } finally { 
+    } finally {
       setModalLoading(false);
     }
   };
-  // --- [AKHIR PERBAIKAN] ---
 
   const handleConfirmCancel = async () => {
     setShowCancelModal(false);
@@ -204,28 +204,24 @@ const Receipt = () => {
     setShowCancelModal(true);
   };
 
-  // --- [PERBAIKAN] Fungsi Export Excel dengan Error Handling Lebih Baik ---
+  // --- Export Excel (Menyertakan Filter Tanggal) ---
   const handleExportExcel = async () => {
     setIsExporting(true);
-    setError(null); // Bersihkan error sebelumnya
+    setError(null);
     try {
-      // Siapkan params. Jika filterStatus kosong, jangan kirim query param-nya.
       const params = {};
-      if (filterStatus) {
-        params.order_status = filterStatus;
-      }
+      if (filterStatus) params.order_status = filterStatus;
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
 
       const response = await axiosClient.get("/orders/export/excel", {
         params: params,
-        responseType: "blob", // Ini SANGAT PENTING untuk menerima file
+        responseType: "blob",
       });
 
-      // Buat URL dari blob
       const url = window.URL.createObjectURL(new Blob([response.data]));
-
-      // Dapatkan nama file dari header 'content-disposition'
       const contentDisposition = response.headers["content-disposition"];
-      let filename = "laporan_pesanan.xlsx"; // Nama default
+      let filename = "laporan_pesanan.xlsx";
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
         if (filenameMatch && filenameMatch[1]) {
@@ -233,49 +229,30 @@ const Receipt = () => {
         }
       }
 
-      // Buat link <a> sementara untuk trigger download
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
-
-      // Bersihkan link dan URL
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      // --- [BLOK INI DIPERBARUI] ---
       let errorMessage = "Gagal mengunduh file Excel.";
       if (err.response) {
-        // Cek jika response error adalah blob (yang berisi JSON)
         if (err.response.data instanceof Blob && err.response.data.type === "application/json") {
           try {
-            // Ubah blob error menjadi teks, lalu parse sebagai JSON
-            const errorBlobText = await err.response.data.text();
-            const errorJson = JSON.parse(errorBlobText);
-            errorMessage = errorJson.message || errorMessage;
-          } catch (e) {
-            errorMessage = "Gagal membaca respons error (blob) dari server.";
-          }
-        } else if (err.response.data && err.response.data.message) {
-          // Jika response error adalah JSON biasa (kasus paling umum, cth: 404)
+            const text = await err.response.data.text();
+            errorMessage = JSON.parse(text).message || errorMessage;
+          } catch (e) {}
+        } else if (err.response.data?.message) {
           errorMessage = err.response.data.message;
-        } else if (err.response.statusText) {
-          // Fallback jika tidak ada data JSON
-          errorMessage = `Error: ${err.response.status} ${err.response.statusText}`;
         }
-      } else if (err.message) {
-        // Jika error jaringan (cth: server mati)
-        errorMessage = err.message;
       }
-      console.error("Export error:", err);
-      setError(errorMessage); // Tampilkan error yang lebih spesifik di UI
-      // --- [AKHIR BLOK PERBARUAN] ---
+      setError(errorMessage);
     } finally {
       setIsExporting(false);
     }
   };
-  // --- Akhir Fungsi Export Excel ---
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -295,25 +272,42 @@ const Receipt = () => {
     }
   };
 
-  // --- Logika Filter & Sort ---
+  // --- [INTI PERBAIKAN] Logika Filter & Sort untuk Tabel ---
   const filteredAndSortedOrders = useMemo(() => {
     return orders
       .filter((order) => {
-        // Filter berdasarkan status
+        // 1. Filter berdasarkan status dropdown
         if (filterStatus && order.order_status !== filterStatus) {
           return false;
         }
 
-        const searchLower = searchTerm.toLowerCase();
-        const userName =
-          `${order.user?.first_name || ""} ${
-            order.user?.last_name || ""
-          }`.toLowerCase();
+        // 2. [BARU] Filter berdasarkan Rentang Tanggal (Data Tabel)
+        if (startDate || endDate) {
+          const createdStr = order.created_at || order.createdAt;
+          if (!createdStr) return false;
+          
+          // Konversi waktu pesanan ke Timestamp agar akurat
+          const orderTime = new Date(createdStr.replace(" ", "T")).getTime();
 
-        // Jika tidak ada search term, lolos filter
+          if (startDate) {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0); // Mulai dari jam 00:00:00
+            if (orderTime < start.getTime()) return false;
+          }
+
+          if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Sampai jam 23:59:59
+            if (orderTime > end.getTime()) return false;
+          }
+        }
+
+        // 3. Filter berdasarkan kolom Search
+        const searchLower = searchTerm.toLowerCase();
         if (!searchLower) return true;
 
-        // Cari berdasarkan ID Order, Nama Pembeli, Email, atau Status
+        const userName = `${order.user?.first_name || ""} ${order.user?.last_name || ""}`.toLowerCase();
+        
         return (
           `#${order.id}`.includes(searchLower) ||
           userName.includes(searchLower) ||
@@ -325,50 +319,30 @@ const Receipt = () => {
         const aValue = getNestedValue(a, sortBy);
         const bValue = getNestedValue(b, sortBy);
 
-        if (aValue == null && bValue == null) return 0;
-        if (aValue == null) return sortOrder === "asc" ? -1 : 1;
-        if (bValue == null) return sortOrder === "asc" ? 1 : -1;
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
 
         if (sortBy === "created_at" || sortBy === "updated_at") {
-          const dateA = new Date(aValue);
-          const dateB = new Date(bValue);
-          if (isNaN(dateA) && isNaN(dateB)) return 0;
-          if (isNaN(dateA)) return sortOrder === "asc" ? -1 : 1;
-          if (isNaN(dateB)) return sortOrder === "asc" ? 1 : -1;
-          const result = dateA - dateB;
-          return sortOrder === "asc" ? result : -result;
-        } else if (typeof aValue === "number" && typeof bValue === "number") {
-          const result = aValue - bValue;
-          return sortOrder === "asc" ? result : -result;
-        } else if (typeof aValue === "string" && typeof bValue === "string") {
-          const result = aValue.localeCompare(bValue);
-          return sortOrder === "asc" ? result : -result;
-        } else if (sortBy === "user") {
-          const nameA = a.user?.first_name || "";
-          const nameB = b.user?.first_name || "";
-          const result = nameA.localeCompare(nameB);
-          return sortOrder === "asc" ? result : -result;
-        } else if (sortBy === "user.email") {
-          const emailA = a.user?.email || "";
-          const emailB = b.user?.email || "";
-          const result = emailA.localeCompare(emailB);
-          return sortOrder === "asc" ? result : -result;
+          return sortOrder === "asc" 
+            ? new Date(aValue) - new Date(bValue)
+            : new Date(bValue) - new Date(aValue);
+        } else if (typeof aValue === "number") {
+          return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+        } else {
+          return sortOrder === "asc"
+            ? String(aValue).localeCompare(String(bValue))
+            : String(bValue).localeCompare(String(aValue));
         }
-        return 0;
       });
-  }, [orders, searchTerm, sortBy, sortOrder, filterStatus]); 
-  // --- Akhir Logika Filter & Sort ---
+  }, [orders, searchTerm, sortBy, sortOrder, filterStatus, startDate, endDate]); 
+  // --- Akhir Logika Filter ---
 
   const totalPages = Math.ceil(filteredAndSortedOrders.length / itemsPerPage);
   const currentOrders = useMemo(() => {
     const firstItemIndex = (currentPage - 1) * itemsPerPage;
-    return filteredAndSortedOrders.slice(
-      firstItemIndex,
-      firstItemIndex + itemsPerPage
-    );
+    return filteredAndSortedOrders.slice(firstItemIndex, firstItemIndex + itemsPerPage);
   }, [filteredAndSortedOrders, currentPage, itemsPerPage]);
 
-  // --- Fungsi Handle Sort ---
   const handleSort = (columnKey) => {
     if (sortBy === columnKey) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -376,22 +350,14 @@ const Receipt = () => {
       setSortBy(columnKey);
       setSortOrder("asc");
     }
-    setCurrentPage(1); // Reset ke halaman 1 saat sorting
-  };
-  // --- Akhir Fungsi Handle Sort ---
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCurrentPage(1);
   };
 
-  // --- Handler untuk Submit Form ---
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setSearchTerm(inputValue);
     setCurrentPage(1);
   };
-  // --------------------------------
 
   const orderTableColumns = [
     {
@@ -410,9 +376,7 @@ const Receipt = () => {
       label: "Pembeli",
       sortable: true,
       render: (order) =>
-        `${order.user?.first_name || ""} ${
-          order.user?.last_name || ""
-        }`.trim() || "N/A",
+        `${order.user?.first_name || ""} ${order.user?.last_name || ""}`.trim() || "N/A",
     },
     {
       key: "user.email",
@@ -454,8 +418,7 @@ const Receipt = () => {
       onClick={() => fetchOrderDetail(order.id)}
       className="text-elegantburgundy hover:text-softpink transition-colors"
     >
-      {" "}
-      Detail{" "}
+      Detail
     </button>
   );
 
@@ -473,57 +436,73 @@ const Receipt = () => {
       >
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-darkgray mb-2">
-            {" "}
-            Riwayat Transaksi{" "}
+            Riwayat Transaksi
           </h1>
           <p className="text-darkgray/70">
-            {" "}
-            Lihat dan kelola semua riwayat pesanan pelanggan.{" "}
+            Lihat dan kelola semua riwayat pesanan pelanggan.
           </p>
         </div>
         {error && (
           <div className="bg-softpink/50 text-elegantburgundy p-4 rounded-lg mb-6">
-            {" "}
-            {error}{" "}
+            {error}
           </div>
         )}
 
-        {/* --- Search, Filter, dan Export --- */}
         <div className="bg-purewhite rounded-lg shadow-sm border border-lightmauve p-4 md:p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search Form */}
-            <form className="relative flex-grow" onSubmit={handleSearchSubmit}>
+          <div className="flex flex-col gap-4 flex-wrap">
+            {/* Search */}
+            <div className="flex flex-col sm:flex-row gap-2">
+            <form className="relative flex-grow min-w-[200px]" onSubmit={handleSearchSubmit}>
               <input
                 type="text"
-                placeholder="Cari berdasarkan ID, Nama Pembeli, Email..."
+                placeholder="Cari berdasarkan ID, Nama, Email..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-lightmauve rounded-lg focus:ring-2 focus:ring-elegantburgundy focus:border-elegantburgundy transition-colors"
               />
-              <svg
-                className="absolute left-3 top-2.5 w-5 h-5 text-darkgray/40"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
+              <svg className="absolute left-3 top-2.5 w-5 h-5 text-darkgray/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </form>
+          </div>
+            {/* Filter Tanggal */}
+            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col">
+                 <span className="text-xs text-gray-500 ml-1 mb-0.5">Dari Tanggal</span>
+                 <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 py-2 border border-lightmauve rounded-lg focus:ring-2 focus:ring-elegantburgundy focus:border-elegantburgundy transition-colors bg-purewhite text-sm"
+                />
+              </div>
+              <div className="flex flex-col">
+                 <span className="text-xs text-gray-500 ml-1 mb-0.5">Sampai Tanggal</span>
+                 <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-4 py-2 border border-lightmauve rounded-lg focus:ring-2 focus:ring-elegantburgundy focus:border-elegantburgundy transition-colors bg-purewhite text-sm"
+                />
+              </div>
+            </div>
 
-            {/* Filter Status dan Tombol Export */}
-            <div className="flex-col flex-shrink-0 flex gap-2 md:gap-4">
+            {/* Filter Status & Export */}
+            <div className="flex-col flex-shrink-0 flex gap-2 md:flex-row md:items-end">
               <select
                 value={filterStatus}
                 onChange={(e) => {
                   setFilterStatus(e.target.value);
-                  setCurrentPage(1); // Reset pagination saat filter
+                  setCurrentPage(1);
                 }}
-                className="h-full px-4 py-2 border border-lightmauve rounded-lg focus:ring-2 focus:ring-elegantburgundy focus:border-elegantburgundy transition-colors bg-purewhite"
+                className="h-10 px-4 py-2 border border-lightmauve rounded-lg focus:ring-2 focus:ring-elegantburgundy focus:border-elegantburgundy transition-colors bg-purewhite"
               >
                 <option value="">Semua Status</option>
                 <option value="menunggu pembayaran">Menunggu Pembayaran</option>
@@ -537,39 +516,25 @@ const Receipt = () => {
               <button
                 onClick={handleExportExcel}
                 disabled={isExporting}
-                className="h-full flex items-center justify-center px-4 py-2 bg-green-600 text-purewhite rounded-lg font-semibold shadow-sm transition-colors hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="h-10 flex items-center justify-center px-4 py-2 bg-green-600 text-purewhite rounded-lg font-semibold shadow-sm transition-colors hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {isExporting ? (
-                  "Mengekspor..."
-                ) : (
+                {isExporting ? "..." : (
                   <>
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                      />
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Export Excel
+                    Export
                   </>
                 )}
               </button>
             </div>
           </div>
+          </div>
 
           <div className="mt-4 text-sm text-darkgray/70">
-            Menampilkan {currentOrders.length} dari{" "}
-            {filteredAndSortedOrders.length} pesanan
+            Menampilkan {currentOrders.length} dari {filteredAndSortedOrders.length} pesanan
           </div>
         </div>
-        {/* --- Akhir Area Search & Filter --- */}
 
         <div className="bg-purewhite rounded-lg shadow-sm border border-lightmauve overflow-hidden">
           <Table
@@ -586,7 +551,10 @@ const Receipt = () => {
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            onPageChange={handlePageChange}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
           />
         )}
       </main>

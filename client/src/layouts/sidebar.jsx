@@ -281,7 +281,7 @@ const Sidebar = ({ menu, isSidebarOpen, setIsSidebarOpen }) => {
                           }
                           ${
                             isDropdownOpen ||
-                            (isActive && item.label !== "Beranda") // Jangan menyorot dropdown jika hanya Beranda yang aktif
+                            (isActive && item.label !== "Beranda")
                               ? "bg-lightmauve text-elegantburgundy font-semibold"
                               : "text-darkgray hover:bg-lightmauve"
                           }

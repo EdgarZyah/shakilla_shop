@@ -277,29 +277,45 @@ exports.getOrderDetail = async (req, res) => {
 
 // [ADMIN & USER] Mengubah Status Order
 exports.updateOrderStatus = async (req, res) => {
+  // 1. Mulai Transaksi
+  const t = await sequelize.transaction();
+  
   try {
     const { id } = req.params;
     const { order_status } = req.body;
     const { role, id: userId } = req.user;
 
-    const order = await Order.findByPk(id);
+    const order = await Order.findByPk(id, {
+      include: [
+        {
+          model: OrderItem,
+          as: "items", 
+        }
+      ],
+      transaction: t 
+    });
 
     if (!order) {
+      await t.rollback();
       return res.status(404).json({ message: "Order tidak ditemukan." });
     }
 
+    // --- VALIDASI HAK AKSES & STATUS (Logika Lama) ---
     if (role !== "admin") {
       if (order.user_id !== userId) {
+        await t.rollback();
         return res
           .status(403)
           .json({ message: "Akses ditolak. Ini bukan pesanan Anda." });
       }
       if (order_status !== "dibatalkan") {
+        await t.rollback();
         return res
           .status(403)
           .json({ message: "Pengguna hanya dapat membatalkan pesanan." });
       }
       if (order.order_status !== "menunggu pembayaran") {
+        await t.rollback();
         return res.status(400).json({
           message: "Pesanan yang sudah diproses tidak dapat dibatalkan.",
         });
@@ -314,9 +330,26 @@ exports.updateOrderStatus = async (req, res) => {
         "dibatalkan",
       ];
       if (!order_status || !validAdminStatuses.includes(order_status)) {
+        await t.rollback();
         return res
           .status(400)
           .json({ message: `Status order tidak valid: ${order_status}` });
+      }
+    }
+
+    // LOGIKA PENGEMBALIAN STOK
+    if (order_status === "dibatalkan" && order.order_status !== "dibatalkan") {
+      console.log(`Mengembalikan stok untuk Order #${order.id}...`);
+      
+      for (const item of order.items) {
+        // Increment stok di ProductVariant sesuai jumlah yang dipesan
+        await ProductVariant.increment(
+          { stock: item.quantity }, 
+          { 
+            where: { id: item.product_variant_id },
+            transaction: t 
+          }
+        );
       }
     }
 
@@ -324,6 +357,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     if (order_status === "dikirim" && !order.shipped_at) {
       if (role !== "admin" || !order.shipping_receipt_number) {
+        await t.rollback();
         return res.status(400).json({
           message:
             "Upload resi terlebih dahulu sebelum mengubah status menjadi 'dikirim'.",
@@ -337,13 +371,18 @@ exports.updateOrderStatus = async (req, res) => {
       updateFields.order_status = "selesai";
     }
 
-    await order.update(updateFields);
+    await order.update(updateFields, { transaction: t });
+
+    // Commit transaksi jika semua berhasil
+    await t.commit();
 
     res.status(200).json({
-      message: `Status Order #${id} berhasil diubah menjadi ${updateFields.order_status}.`,
+      message: `Status Order #${id} berhasil diubah menjadi ${updateFields.order_status}. Stok telah diperbarui jika dibatalkan.`,
       order,
     });
   } catch (error) {
+    // Rollback jika terjadi error
+    await t.rollback();
     console.error("Update order status error:", error);
     res.status(500).json({
       message: "Gagal memperbarui status order.",

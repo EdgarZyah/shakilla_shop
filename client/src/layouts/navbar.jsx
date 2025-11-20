@@ -170,19 +170,19 @@ const Navbar = ({ key }) => {
                 to="/"
                 className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide"
               >
-                Home
+                Beranda
               </Link>
               <Link
                 to="/products"
                 className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide"
               >
-                Products
+                Produk
               </Link>
               <Link
                 to="/about"
                 className="text-darkgray font-semibold text-sm transition-colors duration-300 hover:text-elegantburgundy tracking-wide"
               >
-                About Us
+                Tentang Kami
               </Link>
             </div>
 
@@ -203,7 +203,7 @@ const Navbar = ({ key }) => {
                     onClick={handleLogout}
                     className="hidden md:block px-4 py-2 text-sm font-semibold text-purewhite bg-elegantburgundy rounded-full hover:bg-softpink"
                   >
-                    Logout
+                    Keluar
                   </button>
                 </>
               ) : (
@@ -212,7 +212,7 @@ const Navbar = ({ key }) => {
                     to="/login"
                     className="hidden md:block text-darkgray font-semibold text-sm hover:text-elegantburgundy"
                   >
-                    Login
+                    Masuk
                   </Link>
                   <Link
                     to="/signup"
@@ -265,21 +265,21 @@ const Navbar = ({ key }) => {
               onClick={() => setIsMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
             >
-              Home
+              Beranda
             </Link>
             <Link
               to="/products"
               onClick={() => setIsMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
             >
-              Products
+              Produk
             </Link>
             <Link
               to="/about"
               onClick={() => setIsMobileMenuOpen(false)}
               className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
             >
-              About Us
+              Tentang Kami
             </Link>
             {isLoggedIn ? (
               <>
@@ -301,7 +301,7 @@ const Navbar = ({ key }) => {
                   }}
                   className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-purewhite bg-elegantburgundy hover:bg-softpink transition-colors"
                 >
-                  Logout
+                  Keluar
                 </button>
               </>
             ) : (
@@ -311,7 +311,7 @@ const Navbar = ({ key }) => {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="block px-3 py-2 rounded-lg text-base font-medium text-darkgray hover:text-purewhite hover:bg-elegantburgundy transition-colors duration-300"
                 >
-                  Login
+                  Masuk
                 </Link>
                 <Link
                   to="/signup"
