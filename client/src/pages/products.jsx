@@ -13,7 +13,7 @@ const heroSubtitle = "[ Explore our curated collection of style & elegance ]";
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [inputValue, setInputValue] = useState(""); // <-- Ditambahkan
+  const [inputValue, setInputValue] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -39,7 +39,7 @@ const Products = () => {
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()
-      .includes(searchTerm.toLowerCase()); // <-- Menggunakan searchTerm
+      .includes(searchTerm.toLowerCase());
     const matchesCategory =
       selectedCategory === "All Categories" ||
       product.category?.name === selectedCategory;
@@ -73,13 +73,13 @@ const Products = () => {
       {/* Search & Filter */}
       <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         
-        {/* --- Search Bar (Diubah menjadi Form) --- */}
+        {/* --- Search Bar --- */}
         <form onSubmit={handleSearchSubmit} className="w-full md:w-1/3">
           <input
             type="text"
-            placeholder="Search fashion items..."
-            value={inputValue} // <-- Diubah
-            onChange={(e) => setInputValue(e.target.value)} // <-- Diubah
+            placeholder="Cari..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             className="w-full px-4 py-2 bg-purewhite border border-lightmauve rounded-md focus:outline-none focus:ring-2 focus:ring-elegantburgundy"
             aria-label="Search fashion items"
           />
@@ -90,7 +90,7 @@ const Products = () => {
           value={selectedCategory}
           onChange={(e) => {
             setSelectedCategory(e.target.value);
-            setCurrentPage(1); // Tetap reset paginasi saat filter berubah
+            setCurrentPage(1);
           }}
           className="w-full md:w-48 px-4 py-2 bg-purewhite border border-lightmauve rounded-md focus:outline-none focus:ring-2 focus:ring-elegantburgundy"
           aria-label="Filter by category"
@@ -106,7 +106,7 @@ const Products = () => {
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-6 pb-16">
         <h2 className="text-3xl font-bold text-elegantburgundy mb-6">
-          Fashion Collection
+          Koleksi Fashion 
         </h2>
         {currentItems.length === 0 ? (
           <p className="text-center text-darkgray mt-10">

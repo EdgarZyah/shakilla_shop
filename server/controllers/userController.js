@@ -1,6 +1,6 @@
 // server/controllers/userController.js
 const db = require('../models/index');
-const { User, Cart, Order, Message } = db;
+const { User, Cart, Order, Message, Visitor } = db;
 const { Op } = db.Sequelize;
 
 // [USER] Mengambil data profil sendiri
@@ -194,5 +194,58 @@ exports.updateUserPassword = async (req, res) => {
     } catch (error) {
         console.error("Error updating password:", error);
         res.status(500).json({ message: 'Gagal memperbarui password.', error: error.message });
+    }
+};
+
+// [ADMIN] Mengambil data statistik untuk dashboard (REAL DATA & DINAMIS)
+exports.getDashboardStats = async (req, res) => {
+    try {
+        // [PERBAIKAN UTAMA] Ambil parameter 'days' dari query URL. Default ke 7 jika tidak ada.
+        const daysParam = req.query.days ? parseInt(req.query.days) : 20;
+        
+        const labels = [];
+        const data = [];
+        const today = new Date();
+
+        // Loop mundur sesuai jumlah hari yang diminta (daysParam)
+        // Jika 7 hari -> i = 6, 5, 4... 0
+        // Jika 30 hari -> i = 29, 28... 0
+        for (let i = daysParam - 1; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            
+            // 1. Siapkan Label (Contoh: "20 Nov")
+            const dateLabel = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            labels.push(dateLabel);
+
+            // 2. Siapkan Format Tanggal DB (YYYY-MM-DD)
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const dbDateString = `${year}-${month}-${day}`;
+
+            // 3. Hitung jumlah visitor unik pada tanggal tersebut
+            // Pastikan tabel Visitor sudah ada & model diimport dengan benar
+            let count = 0;
+            if (Visitor) {
+                count = await Visitor.count({
+                    where: {
+                        visit_date: dbDateString
+                    }
+                });
+            }
+            
+            data.push(count);
+        }
+
+        res.status(200).json({
+            labels, 
+            data    
+        });
+
+    } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+        // Fallback agar chart tidak error
+        res.status(200).json({ labels: [], data: [] });
     }
 };

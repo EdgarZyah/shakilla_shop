@@ -21,9 +21,4 @@ export const userMenu = [
     to: "/user/profile",
     icon: <FaUserCircle className="h-6 w-6" />,
   },
-  {
-    label: "Pesanan Saya",
-    to: "/user/orders",
-    icon: <FaListAlt className="h-6 w-6" />,
-  },
 ];

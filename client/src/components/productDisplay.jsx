@@ -17,7 +17,7 @@ const ProductDisplay = ({ products = [], onAddToCart }) => {
   }
 
   return (
-    <div className="h-full mx-auto bg-lightmauve">
+    <section className="py-12 px-6 bg-lightmauve">
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
           <h2 className="text-4xl font-extrabold tracking-tight text-elegantburgundy sm:text-5xl">
@@ -41,11 +41,11 @@ const ProductDisplay = ({ products = [], onAddToCart }) => {
             to="/products"
             className="bg-elegantburgundy hover:bg-gray-700 p-3 rounded-md text-md text-purewhite inline-block"
           >
-            More Products
+            Lihat Koleksi Produk
           </Link>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

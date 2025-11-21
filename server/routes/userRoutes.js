@@ -17,7 +17,8 @@ router.put('/profile', userController.updateProfile);
 router.put('/profile/password', userController.updateUserPassword);
 
 
-// ADMIN ROUTES (Memerlukan Otentikasi + Admin Role)
+// ADMIN ROUTES
+router.get('/dashboard/stats', isAdmin, userController.getDashboardStats);
 
 // GET /api/users - Ambil semua pengguna
 router.get('/', isAdmin, userController.getAllUsers);

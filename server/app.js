@@ -14,6 +14,9 @@ const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const userRoutes = require("./routes/userRoutes");
 
+// Import Middleware Visitor Tracker
+const trackVisitor = require('./middlewares/visitorTracker');
+
 // Database Connection
 const db = require("./models");
 db.sequelize
@@ -25,6 +28,9 @@ db.sequelize
 app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ================= VISITOR TRACKING =================
+app.use(trackVisitor);
 
 // ================= STATIC FILES =================
 app.use(

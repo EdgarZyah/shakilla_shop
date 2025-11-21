@@ -18,7 +18,7 @@ export const adminMenu = [
     icon: <FaTachometerAlt className="h-6 w-6" />,
   },
   {
-    label: "Users",
+    label: "Pengguna",
     to: "/admin/users",
     icon: <FaUsers className="h-6 w-6" />,
   },

@@ -5,7 +5,7 @@ import axiosClient from '../api/axiosClient';
 import Navbar from '../layouts/navbar';
 import Footer from '../layouts/footer';
 // --- PERBAIKAN 1: Pastikan path import benar ---
-import QrisImage from '../assets/qris-merchant.jpg'; // Import gambar
+import QrisImage from '../assets/qris-merchant.webp'; // Import gambar
 
 // GANTI DENGAN NOMOR WA ADMIN
 const ADMIN_WHATSAPP_NUMBER = "6289503609911";
@@ -50,7 +50,7 @@ const PaymentPage = () => {
         order_status: 'dibatalkan',
       });
       setStatus({ type: 'success', message: 'Pesanan dibatalkan.' });
-      setTimeout(() => navigate('/user/orders'), 2000);
+      setTimeout(() => navigate('/user/dashboard'), 2000);
     } catch (err) {
       setStatus({ type: 'error', message: err.response?.data?.message || 'Gagal.' });
     }
@@ -94,7 +94,7 @@ const PaymentPage = () => {
             <a href={waLink} target="_blank" rel="noopener noreferrer" className="w-full flex justify-center items-center bg-green-500 text-white py-3 px-4 rounded-md text-base font-semibold hover:bg-green-600 transition-colors">
               Hubungi Admin (WA)
             </a>
-            <Link to="/user/orders" className="w-full flex justify-center items-center bg-elegantburgundy text-purewhite py-3 px-4 rounded-md text-base font-semibold shadow-md hover:bg-softpink transition-colors">
+            <Link to="/user/dashboard" className="w-full flex justify-center items-center bg-elegantburgundy text-purewhite py-3 px-4 rounded-md text-base font-semibold shadow-md hover:bg-softpink transition-colors">
               Sudah Bayar? Upload Bukti
             </Link>
             <button onClick={handleCancelOrder} disabled={status.type === 'loading'} className="w-full text-sm text-red-600 hover:text-red-800 disabled:opacity-50">
