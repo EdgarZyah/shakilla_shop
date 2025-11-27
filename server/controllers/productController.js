@@ -3,27 +3,19 @@ const db = require("../models/index");
 const { Product, Category, ProductVariant, Sequelize } = db;
 const { Op } = db.Sequelize;
 const sequelize = db.sequelize; 
-const defaultPage = 1;
-const defaultLimit = 10;
 
 const includeVariants = {
   model: ProductVariant,
   as: 'variants',
 };
 
-// [PUBLIC] Ambil semua produk dengan filter dan pagination
+// [PUBLIC] Ambil semua produk dengan filter (tanpa pagination)
 exports.getProducts = async (req, res) => {
   try {
     const {
-      page = defaultPage,
-      limit = defaultLimit,
       search = "",
       category_id,
     } = req.query;
-
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const offset = (pageNum - 1) * limitNum;
 
     let whereCondition = {};
 
@@ -40,8 +32,6 @@ exports.getProducts = async (req, res) => {
 
     const { count, rows: products } = await Product.findAndCountAll({
       where: whereCondition,
-      limit: limitNum,
-      offset: offset,
       include: [
         {
           model: Category,
@@ -57,8 +47,6 @@ exports.getProducts = async (req, res) => {
     res.status(200).json({
       products,
       totalItems: count,
-      totalPages: Math.ceil(count / limitNum),
-      currentPage: pageNum,
     });
   } catch (error) {
     res

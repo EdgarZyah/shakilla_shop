@@ -13,7 +13,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         disabled={currentPage === 1}
         className="px-4 py-2 border rounded-md shadow-sm text-sm font-medium text-darkgray bg-purewhite hover:bg-lightmauve disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Previous
+        Sebelumnya
       </button>
 
       {pageNumbers.map((number) => (
@@ -35,7 +35,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         disabled={currentPage === totalPages}
         className="px-4 py-2 border rounded-md shadow-sm text-sm font-medium text-darkgray bg-purewhite hover:bg-lightmauve disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Next
+        Selanjutnya
       </button>
     </nav>
   );

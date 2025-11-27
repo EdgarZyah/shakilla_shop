@@ -16,7 +16,7 @@ const Products = () => {
   const [inputValue, setInputValue] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const itemsPerPage = 12;
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -129,6 +129,7 @@ const Products = () => {
           onPageChange={handlePageChange}
         />
       )}
+      <br />
       <WhatsappOverlay />
       <Footer />
     </div>
